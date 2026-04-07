@@ -1,4 +1,4 @@
-const MISTRAL_API_KEY ='wPUkMMGL2Ss5mijhtULdr46o4HJQcpi9';
+const MISTRAL_API_KEY =process.env.MISTRAL_API_KEY;
 const MISTRAL_AGENT_ID = 'ag_019d4cb0e3ad7269b8e189224bddfb9a';
 const MISTRAL_AGENT_VERSION = 3;
 
