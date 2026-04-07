@@ -1,0 +1,217 @@
+.welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  padding: 40px 32px;
+  gap: 36px;
+  text-align: center;
+  animation: fadeUp 0.6s ease;
+  overflow-y: auto;
+}
+
+/* ── Hero ── */
+.welcome-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.welcome-orb {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.orb-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid;
+  animation: spin linear infinite;
+}
+
+.orb-ring-1 {
+  inset: 0;
+  border-color: rgba(0,210,255,0.4);
+  animation-duration: 8s;
+}
+
+.orb-ring-2 {
+  inset: 10px;
+  border-color: rgba(124,58,237,0.4);
+  animation-duration: 6s;
+  animation-direction: reverse;
+}
+
+.orb-ring-3 {
+  inset: 20px;
+  border-color: rgba(249,115,22,0.3);
+  animation-duration: 4s;
+}
+
+.orb-icon {
+  font-size: 32px;
+  color: var(--cyan);
+  z-index: 1;
+  text-shadow: 0 0 20px var(--cyan);
+  animation: orbPulse 3s ease-in-out infinite;
+}
+
+.welcome-text {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.welcome-title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  gap: 2px;
+}
+
+.title-fs {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 5px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.title-ai {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  background: linear-gradient(135deg, var(--cyan) 0%, #a78bfa 50%, var(--orange) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.welcome-desc {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.7;
+  max-width: 500px;
+}
+
+/* ── Capabilities ── */
+.welcome-caps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  max-width: 700px;
+  width: 100%;
+}
+
+.cap-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  text-align: left;
+  transition: all 0.2s;
+}
+
+.cap-card:hover {
+  border-color: var(--border2);
+  background: var(--surface2);
+}
+
+.cap-icon { font-size: 18px; margin-top: 1px; flex-shrink: 0; }
+
+.cap-title {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.cap-desc {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+/* ── Chips ── */
+.welcome-chips-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 680px;
+}
+
+.chips-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 2.5px;
+  color: var(--text-mute);
+}
+
+.chips-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.welcome-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.welcome-chip:hover {
+  background: var(--cyan-dim);
+  border-color: rgba(0,210,255,0.35);
+  color: var(--cyan);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,210,255,0.15);
+}
+
+.chip-arrow {
+  opacity: 0;
+  font-size: 12px;
+  transition: opacity 0.2s;
+}
+.welcome-chip:hover .chip-arrow { opacity: 1; }
+
+/* ── Hint ── */
+.welcome-hint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-mute);
+  letter-spacing: 0.3px;
+}
+
+@media (max-width: 900px) {
+  .welcome-caps { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .welcome-caps { grid-template-columns: 1fr 1fr; }
+  .title-ai { font-size: 28px; }
+}

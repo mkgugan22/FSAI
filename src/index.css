@@ -1,0 +1,108 @@
+/* ═══════════════════════════════════════
+   FSAI – Global Styles with Theme Support
+═══════════════════════════════════════ */
+
+/* DARK THEME (Default) */
+:root,
+[data-theme="dark"] {
+  --bg: #0a0e1a;
+  --bg-secondary: #1a1f2e;
+  --surface: rgba(20, 26, 40, 0.8);
+  --surface2: rgba(30, 37, 56, 0.6);
+  --surface3: rgba(40, 50, 70, 0.4);
+  --border: rgba(100, 150, 255, 0.1);
+  --border2: rgba(100, 150, 255, 0.15);
+  
+  --text: #e0e8ff;
+  --text-dim: #9ca3af;
+  --text-subtle: #6b7280;
+  
+  --cyan: #00d2ff;
+  --cyan-dim: rgba(0, 210, 255, 0.1);
+  --purple: #a78bfa;
+  --orange: #fb923c;
+  
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Cormorant Garamond', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+}
+
+/* LIGHT THEME */
+[data-theme="light"] {
+  --bg: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --surface: rgba(248, 250, 252, 0.9);
+  --surface2: rgba(226, 232, 240, 0.7);
+  --surface3: rgba(203, 213, 225, 0.5);
+  --border: rgba(15, 23, 42, 0.1);
+  --border2: rgba(15, 23, 42, 0.15);
+  
+  --text: #1e293b;
+  --text-dim: #64748b;
+  --text-subtle: #94a3b8;
+  
+  --cyan: #0891b2;
+  --cyan-dim: rgba(8, 145, 178, 0.1);
+  --purple: #7c3aed;
+  --orange: #ea580c;
+  
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Cormorant Garamond', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border2);
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border);
+}
+
+/* Selection */
+::selection {
+  background: var(--cyan-dim);
+  color: var(--text);
+}
+
+/* Focus visible */
+:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
