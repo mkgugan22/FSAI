@@ -5,24 +5,34 @@ import React, { useState } from 'react';
 import { QUICK_PROMPTS } from '../utils/prompts';
 import './Sidebar.css';
 
-export default function Sidebar({ 
-  onQuickPrompt, 
-  isCollapsed, 
+export default function Sidebar({
+  onQuickPrompt,
+  isCollapsed,
   onToggle,
+  isMobileOpen = false,
+  onMobileClose = () => {},
   conversationHistory = [],
   onLoadConversation = () => {},
-  onClearHistory = () => {}
+  onClearHistory = () => {},
 }) {
   const [openCategory, setOpenCategory] = useState('Common Errors');
 
-  const truncateText = (text, length = 50) => {
-    return text.length > length ? text.substring(0, length) + '...' : text;
-  };
+  const truncateText = (text, length = 50) =>
+    text.length > length ? text.substring(0, length) + '…' : text;
+
+  const mobileClass = isMobileOpen ? 'mobile-open' : '';
+  const collapsedClass = isCollapsed ? 'collapsed' : '';
 
   return (
-    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
+    <aside className={`sidebar ${collapsedClass} ${mobileClass}`}>
+      {/* Desktop toggle */}
       <button className="sidebar-toggle" onClick={onToggle} title="Toggle sidebar">
         <span>{isCollapsed ? '▶' : '◀'}</span>
+      </button>
+
+      {/* Mobile close button */}
+      <button className="sidebar-mobile-close" onClick={onMobileClose} aria-label="Close sidebar">
+        ✕
       </button>
 
       {!isCollapsed && (
@@ -32,7 +42,7 @@ export default function Sidebar({
             <div className="recents-section">
               <div className="recents-header">
                 <span className="recents-title">RECENTS</span>
-                <button 
+                <button
                   className="recents-clear"
                   onClick={onClearHistory}
                   title="Clear history"
@@ -58,7 +68,9 @@ export default function Sidebar({
 
           <div className="sidebar-header">
             <span className="sidebar-title">QUICK PROMPTS</span>
-            <span className="sidebar-count">{QUICK_PROMPTS.reduce((a, c) => a + c.items.length, 0)}</span>
+            <span className="sidebar-count">
+              {QUICK_PROMPTS.reduce((a, c) => a + c.items.length, 0)}
+            </span>
           </div>
 
           <div className="sidebar-body">
@@ -66,13 +78,15 @@ export default function Sidebar({
               <div key={group.category} className="prompt-group">
                 <button
                   className={`group-header ${openCategory === group.category ? 'open' : ''}`}
-                  onClick={() => setOpenCategory(
-                    openCategory === group.category ? null : group.category
-                  )}
+                  onClick={() =>
+                    setOpenCategory(openCategory === group.category ? null : group.category)
+                  }
                 >
                   <span className="group-icon">{group.icon}</span>
                   <span className="group-label">{group.category}</span>
-                  <span className="group-chevron">{openCategory === group.category ? '▾' : '▸'}</span>
+                  <span className="group-chevron">
+                    {openCategory === group.category ? '▾' : '▸'}
+                  </span>
                 </button>
 
                 {openCategory === group.category && (
@@ -99,7 +113,11 @@ export default function Sidebar({
           <div className="sidebar-footer">
             <div className="coverage-title">STACK COVERAGE</div>
             <div className="coverage-grid">
-              {['.NET','Node.js','Python','PHP','Java','Go','React','Next.js','Vue','Angular','PostgreSQL','MongoDB','Redis','MySQL'].map(t => (
+              {[
+                '.NET', 'Node.js', 'Python', 'PHP', 'Java', 'Go',
+                'React', 'Next.js', 'Vue', 'Angular',
+                'PostgreSQL', 'MongoDB', 'Redis', 'MySQL',
+              ].map(t => (
                 <span key={t} className="coverage-tag">{t}</span>
               ))}
             </div>

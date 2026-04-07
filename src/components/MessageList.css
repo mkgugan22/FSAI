@@ -5,10 +5,12 @@
   flex-direction: column;
   position: relative;
   z-index: 2;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .messages-inner {
-  padding: 28px 28px 16px;
+  padding: 24px 24px 16px;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -26,9 +28,18 @@
   flex-shrink: 0;
 }
 
-@media (max-width: 600px) {
+/* ── Tablet ── */
+@media (max-width: 768px) {
   .messages-inner {
-    padding: 16px 14px 12px;
-    gap: 18px;
+    padding: 18px 18px 12px;
+    gap: 20px;
+  }
+}
+
+/* ── Mobile ── */
+@media (max-width: 480px) {
+  .messages-inner {
+    padding: 14px 12px 10px;
+    gap: 16px;
   }
 }

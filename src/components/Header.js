@@ -11,13 +11,23 @@ const STACK_LABELS = [
   { label: 'DATABASE', color: '#fb923c', bg: 'rgba(249,115,22,0.1)',  border: 'rgba(249,115,22,0.3)' },
 ];
 
-export default function Header({ messageCount, onClear }) {
+export default function Header({ messageCount, onClear, onMenuToggle }) {
   const { isDarkMode, toggleTheme } = useTheme();
 
   return (
     <header className="header">
-      {/* Left – Logo */}
+      {/* Left – Mobile menu + Logo */}
       <div className="header-logo">
+        {/* Mobile hamburger */}
+        <button
+          className="mobile-menu-btn"
+          onClick={onMenuToggle}
+          title="Open sidebar"
+          aria-label="Open sidebar"
+        >
+          ☰
+        </button>
+
         <div className="logo-orb">
           <span className="logo-icon">⬡</span>
         </div>
@@ -47,12 +57,13 @@ export default function Header({ messageCount, onClear }) {
             <span>⌫</span> Clear
           </button>
         )}
-        
+
         {/* Theme Toggle */}
-        <button 
-          className="theme-btn" 
+        <button
+          className="theme-btn"
           onClick={toggleTheme}
           title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          aria-label="Toggle theme"
         >
           <span>{isDarkMode ? '☀️' : '🌙'}</span>
         </button>

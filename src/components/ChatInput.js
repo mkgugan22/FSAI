@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════
 // FSAI – ChatInput
 // ═══════════════════════════════════════
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import './ChatInput.css';
 
 const PLACEHOLDERS = [
@@ -12,11 +12,19 @@ const PLACEHOLDERS = [
   'Describe your CORS / JWT / auth issue…',
 ];
 
-export default function ChatInput({ onSend, isLoading, initialValue = '' }) {
-  const [value, setValue]       = useState(initialValue);
-  const [focused, setFocused]   = useState(false);
-  const [phIndex, setPhIndex]   = useState(0);
-  const textareaRef             = useRef(null);
+const ChatInput = forwardRef(function ChatInput(
+  { onSend, isLoading, quickInput = '', onQuickInputConsumed },
+  ref
+) {
+  const [value, setValue]     = useState('');
+  const [focused, setFocused] = useState(false);
+  const [phIndex, setPhIndex] = useState(0);
+  const textareaRef           = useRef(null);
+
+  // Expose focus method to parent
+  useImperativeHandle(ref, () => ({
+    focus: () => textareaRef.current?.focus(),
+  }));
 
   // Cycle placeholder
   useEffect(() => {
@@ -24,15 +32,19 @@ export default function ChatInput({ onSend, isLoading, initialValue = '' }) {
     return () => clearInterval(t);
   }, []);
 
-  // Set initial value from quick prompts
+  // Inject quickInput WITHOUT remounting the component
   useEffect(() => {
-    if (initialValue) {
-      setValue(initialValue);
-      textareaRef.current?.focus();
-      autoResize();
+    if (quickInput) {
+      setValue(quickInput);
+      setTimeout(() => {
+        textareaRef.current?.focus();
+        autoResize();
+      }, 50);
+      // Signal parent that we've consumed this value
+      if (onQuickInputConsumed) onQuickInputConsumed();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialValue]);
+  }, [quickInput]);
 
   const autoResize = () => {
     const el = textareaRef.current;
@@ -120,4 +132,6 @@ export default function ChatInput({ onSend, isLoading, initialValue = '' }) {
       </div>
     </div>
   );
-}
+});
+
+export default ChatInput;

@@ -4,13 +4,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: 0 20px;
   height: 62px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
   backdrop-filter: blur(24px);
   flex-shrink: 0;
-  gap: 16px;
+  gap: 12px;
   transition: background-color 0.3s ease;
 }
 
@@ -18,27 +18,28 @@
 .header-logo {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
 .logo-orb {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
   background: linear-gradient(135deg, #7c3aed 0%, #00d2ff 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   animation: orbPulse 3s ease-in-out infinite;
-  box-shadow: 0 0 20px rgba(0,210,255,0.3);
+  box-shadow: 0 0 20px rgba(0, 210, 255, 0.3);
+  flex-shrink: 0;
 }
 
 .logo-icon {
-  font-size: 22px;
+  font-size: 20px;
   color: #fff;
   line-height: 1;
-  filter: drop-shadow(0 0 6px rgba(255,255,255,0.5));
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.5));
 }
 
 .logo-text {
@@ -49,25 +50,26 @@
 
 .logo-title {
   font-family: var(--font-display);
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 800;
   color: var(--cyan);
   letter-spacing: 3px;
-  text-shadow: 0 0 20px rgba(0,210,255,0.5);
+  text-shadow: 0 0 20px rgba(0, 210, 255, 0.5);
   line-height: 1;
 }
 
 .logo-sub {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 9px;
   color: var(--text-dim);
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
+  white-space: nowrap;
 }
 
 /* ── Center ── */
 .header-center {
   display: flex;
-  gap: 7px;
+  gap: 6px;
   flex: 1;
   justify-content: center;
 }
@@ -80,13 +82,14 @@
   font-weight: 700;
   letter-spacing: 1.5px;
   transition: all 0.3s ease;
+  white-space: nowrap;
 }
 
 /* ── Right ── */
 .header-right {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
@@ -94,7 +97,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 12px;
+  padding: 5px 11px;
   border-radius: var(--radius-sm);
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.25);
@@ -103,6 +106,7 @@
   font-size: 11px;
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 .clear-btn:hover {
   background: rgba(239, 68, 68, 0.2);
@@ -123,6 +127,7 @@
   font-size: 16px;
   cursor: pointer;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .theme-btn:hover {
@@ -136,7 +141,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
+  padding: 5px 11px;
   border-radius: 20px;
   background: rgba(16, 185, 129, 0.1);
   border: 1px solid rgba(16, 185, 129, 0.3);
@@ -145,6 +150,7 @@
   color: #10b981;
   letter-spacing: 1.5px;
   transition: all 0.3s ease;
+  white-space: nowrap;
 }
 
 .status-dot {
@@ -153,6 +159,7 @@
   border-radius: 50%;
   background: #10b981;
   animation: blink 1.5s ease-in-out infinite;
+  flex-shrink: 0;
 }
 
 .model-tag {
@@ -169,15 +176,39 @@
 
 @keyframes blink {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  50%       { opacity: 0.5; }
 }
 
 @keyframes orbPulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(0,210,255,0.3), inset 0 0 20px rgba(0,210,255,0.1); }
-  50% { box-shadow: 0 0 40px rgba(0,210,255,0.5), inset 0 0 20px rgba(0,210,255,0.2); }
+  0%, 100% { box-shadow: 0 0 20px rgba(0, 210, 255, 0.3); }
+  50%       { box-shadow: 0 0 40px rgba(0, 210, 255, 0.5); }
 }
 
-@media (max-width: 768px) {
+/* ── Tablet ── */
+@media (max-width: 900px) {
   .header-center { display: none; }
-  .model-tag { display: none; }
+  .model-tag     { display: none; }
+}
+
+/* ── Mobile ── */
+@media (max-width: 600px) {
+  .header {
+    padding: 0 14px;
+    height: 56px;
+    gap: 8px;
+  }
+
+  .logo-sub   { display: none; }
+  .logo-title { font-size: 16px; letter-spacing: 2px; }
+  .logo-orb   { width: 32px; height: 32px; }
+  .logo-icon  { font-size: 16px; }
+
+  .clear-btn   { display: none; }
+  .status-pill { display: none; }
+
+  .theme-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 14px;
+  }
 }
