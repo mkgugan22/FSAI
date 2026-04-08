@@ -12,6 +12,7 @@
   background: var(--bg);
   padding: 20px;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 /* ── Background ── */
@@ -77,6 +78,7 @@
     0 24px 64px rgba(0,0,0,0.5),
     0 0 80px rgba(124,58,237,0.08);
   animation: authCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
 }
 
 [data-theme="light"] .auth-card {
@@ -139,6 +141,7 @@
   color: var(--text-dim);
   letter-spacing: 1.5px;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 /* ── Tabs ── */
@@ -214,6 +217,8 @@
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
   box-sizing: border-box;
+  /* Prevent zoom on iOS */
+  -webkit-text-size-adjust: 100%;
 }
 
 .auth-input::placeholder {
@@ -246,6 +251,7 @@
   font-size: 13px;
   font-weight: 600;
   animation: shake 0.3s ease;
+  word-break: break-word;
 }
 
 .auth-error-icon { font-size: 14px; flex-shrink: 0; }
@@ -271,6 +277,7 @@
   justify-content: center;
   min-height: 48px;
   margin-top: 4px;
+  box-sizing: border-box;
 }
 
 .auth-submit:hover:not(:disabled) {
@@ -354,11 +361,22 @@
 
 /* ── Responsive ── */
 @media (max-width: 480px) {
+  .auth-root { padding: 16px 12px; align-items: flex-start; padding-top: 40px; }
   .auth-card {
-    padding: 28px 20px 22px;
+    padding: 24px 18px 20px;
     border-radius: 16px;
   }
   .auth-logo-title { font-size: 22px; }
   .auth-logo-orb { width: 40px; height: 40px; }
   .auth-logo-icon { font-size: 20px; }
+  .auth-logo { margin-bottom: 22px; }
+  .auth-tab { font-size: 11px; letter-spacing: 0.5px; }
+  /* Prevent iOS zoom on input focus */
+  .auth-input { font-size: 16px; }
+}
+
+@media (max-width: 360px) {
+  .auth-card { padding: 20px 14px 16px; }
+  .auth-logo-title { font-size: 20px; letter-spacing: 3px; }
+  .auth-logo-sub { font-size: 8px; }
 }

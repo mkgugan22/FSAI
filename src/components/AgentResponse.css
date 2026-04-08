@@ -3,6 +3,7 @@
   flex-direction: column;
   gap: 10px;
   width: 100%;
+  min-width: 0;
 }
 
 .response-row-2 {
@@ -18,6 +19,7 @@
   overflow: hidden;
   background: var(--surface);
   transition: border-color 0.2s;
+  min-width: 0;
 }
 .section-card:hover { border-color: var(--border2); }
 
@@ -29,7 +31,7 @@
   border-bottom: 1px solid var(--border);
 }
 
-.section-icon { font-size: 13px; line-height: 1; }
+.section-icon { font-size: 13px; line-height: 1; flex-shrink: 0; }
 
 .section-label {
   font-family: var(--font-ui);
@@ -41,6 +43,8 @@
 
 .section-body {
   padding: 13px 16px;
+  min-width: 0;
+  overflow: hidden;
 }
 .section-body.mono { font-family: var(--font-mono); }
 
@@ -52,6 +56,7 @@
   line-height: 1.75;
   color: var(--text);
   white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .highlight-red {
@@ -159,6 +164,7 @@
   cursor: pointer;
   transition: all 0.2s;
   letter-spacing: 0.5px;
+  flex-shrink: 0;
 }
 .copy-btn:hover { background: rgba(0, 210, 255, 0.2); border-color: rgba(0, 210, 255, 0.5); }
 
@@ -275,10 +281,10 @@
   font-family: var(--font-body);
   font-size: 14px;
   font-weight: 500;
+  word-break: break-word;
 }
 .md-list li strong { font-weight: 700; color: var(--text); }
 .md-list li em { font-style: italic; color: var(--text-dim); }
-.md-list li code { /* inherit inline-code */ }
 
 /* ── Table ── */
 .md-table-wrapper { overflow-x: auto; margin: 0 0 14px; -webkit-overflow-scrolling: touch; }
@@ -306,15 +312,21 @@
 [data-theme="light"] .code-block.markdown-code { background: #1e293b; }
 
 /* ── Responsive ── */
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .response-row-2 { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
   .section-body { padding: 11px 13px; }
   .code-pre { font-size: 11.5px; padding: 12px 13px; }
   .body-text { font-size: 13.5px; }
   .md-list li { font-size: 13.5px; }
   .inline-code { font-size: 11.5px; }
+  .plain-text { font-size: 13.5px; }
 }
+
 @media (max-width: 380px) {
   .section-header { padding: 7px 11px; }
   .section-label { font-size: 9px; letter-spacing: 1.5px; }
+  .code-pre { font-size: 11px; padding: 10px 11px; }
 }

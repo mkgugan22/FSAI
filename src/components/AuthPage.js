@@ -173,7 +173,7 @@ export default function AuthPage() {
         </p>
 
         <p className="auth-disclaimer">
-          Session-only — passwords hashed, zero data written to localStorage.
+            Authrozied to G7
         </p>
       </div>
     </div>

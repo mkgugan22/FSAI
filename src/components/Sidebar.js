@@ -20,24 +20,33 @@ export default function Sidebar({
   const truncateText = (text, length = 50) =>
     text.length > length ? text.substring(0, length) + '…' : text;
 
-  const mobileClass = isMobileOpen ? 'mobile-open' : '';
-  const collapsedClass = isCollapsed ? 'collapsed' : '';
+  const mobileClass   = isMobileOpen  ? 'mobile-open' : '';
+  const collapsedClass = isCollapsed  ? 'collapsed'   : '';
 
   return (
     <aside className={`sidebar ${collapsedClass} ${mobileClass}`}>
-      {/* Desktop toggle */}
+
+      {/* ── Desktop collapse toggle ── */}
       <button className="sidebar-toggle" onClick={onToggle} title="Toggle sidebar">
         <span>{isCollapsed ? '▶' : '◀'}</span>
       </button>
 
-      {/* Mobile close button */}
-      <button className="sidebar-mobile-close" onClick={onMobileClose} aria-label="Close sidebar">
-        ✕
-      </button>
+      {/* ── Mobile top bar (label + close) ── */}
+      <div className="sidebar-mobile-close">
+        <span className="sidebar-mobile-close-label">Menu</span>
+        <button
+          className="sidebar-mobile-close-btn"
+          onClick={onMobileClose}
+          aria-label="Close sidebar"
+        >
+          ✕
+        </button>
+      </div>
 
       {!isCollapsed && (
         <div className="sidebar-content">
-          {/* RECENTS SECTION */}
+
+          {/* ── RECENTS ── */}
           {conversationHistory.length > 0 && (
             <div className="recents-section">
               <div className="recents-header">
@@ -55,7 +64,7 @@ export default function Sidebar({
                   <button
                     key={conv.id}
                     className="recent-item"
-                    onClick={() => onLoadConversation(conv.text)}
+                    onClick={() => { onLoadConversation(conv.text); onMobileClose(); }}
                     title={conv.text}
                   >
                     <span className="recent-icon">📝</span>
@@ -66,6 +75,7 @@ export default function Sidebar({
             </div>
           )}
 
+          {/* ── Quick Prompts header ── */}
           <div className="sidebar-header">
             <span className="sidebar-title">QUICK PROMPTS</span>
             <span className="sidebar-count">
@@ -73,6 +83,7 @@ export default function Sidebar({
             </span>
           </div>
 
+          {/* ── Prompt groups ── */}
           <div className="sidebar-body">
             {QUICK_PROMPTS.map(group => (
               <div key={group.category} className="prompt-group">
@@ -95,7 +106,7 @@ export default function Sidebar({
                       <button
                         key={item.label}
                         className="prompt-btn"
-                        onClick={() => onQuickPrompt(item.text)}
+                        onClick={() => { onQuickPrompt(item.text); onMobileClose(); }}
                         title={item.text}
                       >
                         <span className="prompt-icon">{item.icon}</span>
@@ -109,7 +120,7 @@ export default function Sidebar({
             ))}
           </div>
 
-          {/* Stack coverage footer */}
+          {/* ── Stack coverage footer ── */}
           <div className="sidebar-footer">
             <div className="coverage-title">STACK COVERAGE</div>
             <div className="coverage-grid">
@@ -122,6 +133,7 @@ export default function Sidebar({
               ))}
             </div>
           </div>
+
         </div>
       )}
     </aside>

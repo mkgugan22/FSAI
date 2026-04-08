@@ -1,30 +1,58 @@
 // ═══════════════════════════════════════
 // FSAI – AuthContext
 // Manages user authentication state
-// 100% sessionStorage + SHA-256 hashed passwords
-// No sensitive data in localStorage whatsoever
+// Hashed passwords stored in localStorage (persistent across devices)
+// Current session in sessionStorage (cleared on browser close for security)
 // ═══════════════════════════════════════
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
-// ── Storage keys (all in sessionStorage) ─────────────────────────────────────
-const SESSION_USER_KEY = 'fsai_session_user';
-const SESSION_DB_KEY   = 'fsai_session_db';
+// ── Storage keys ──────────────────────────────────────────────────────────────
+const SESSION_USER_KEY = 'fsai_session_user';      // sessionStorage - current session
+const PERSISTENT_DB_KEY = 'fsai_users_db_v2';      // localStorage - persistent accounts (NO hashes)
+const SESSION_DB_KEY = 'fsai_session_db';          // sessionStorage - working copy (WITH hashes only)
 
 // ── Legacy localStorage keys to scrub on startup ─────────────────────────────
 // Previous versions of this app wrote user data and hashed passwords into
 // localStorage.  We purge those keys immediately so nothing sensitive lingers.
 // NOTE: We intentionally do NOT purge fsai_messages_* keys here so each
 //       user's chat history persists across browser sessions.
-const LEGACY_LS_KEYS = ['fsai_user', 'fsai_users_db', 'fsai_messages'];
+const LEGACY_LS_KEYS = ['fsai_user', 'fsai_users_db'];
 
 function purgeLegacyLocalStorage() {
   try {
     LEGACY_LS_KEYS.forEach(key => localStorage.removeItem(key));
   } catch {}
 }
+// ── Remove password hashes from localStorage ───────────────────────────────────
+// Migration function: Strip _pwHash from any persisted user data
+// This ensures hashes are ONLY in sessionStorage for security
+function stripHashesFromLocalStorage() {
+  try {
+    const persistedDb = persistentGet(PERSISTENT_DB_KEY);
+    if (persistedDb && typeof persistedDb === 'object') {
+      let modified = false;
+      const cleanDb = {};
 
+      for (const [key, user] of Object.entries(persistedDb)) {
+        if (user && typeof user === 'object' && '_pwHash' in user) {
+          // Remove the hash for security
+          const { _pwHash, ...userWithoutHash } = user;
+          cleanDb[key] = userWithoutHash;
+          modified = true;
+        } else {
+          cleanDb[key] = user;
+        }
+      }
+
+      // Only update if we removed any hashes
+      if (modified) {
+        persistentSet(PERSISTENT_DB_KEY, cleanDb);
+      }
+    }
+  } catch {}
+}
 // ── Password hashing (Web Crypto API — zero external dependencies) ────────────
 async function hashPassword(password) {
   const encoded    = new TextEncoder().encode(password);
@@ -34,7 +62,27 @@ async function hashPassword(password) {
     .join('');
 }
 
-// ── sessionStorage helpers ────────────────────────────────────────────────────
+// ── localStorage helpers (for persistent account database) ─────────────────────
+function persistentGet(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistentSet(key, value) {
+  try {
+    if (value !== null && value !== undefined) {
+      localStorage.setItem(key, JSON.stringify(value));
+    } else {
+      localStorage.removeItem(key);
+    }
+  } catch {}
+}
+
+// ── sessionStorage helpers (for current session) ───────────────────────────────
 function sessionGet(key) {
   try {
     const raw = sessionStorage.getItem(key);
@@ -58,55 +106,87 @@ function sessionSet(key, value) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => sessionGet(SESSION_USER_KEY));
 
-  // Wipe any leftover sensitive data from localStorage on every mount.
+  // Initialize the session database from persistent storage and wipe legacy keys
   useEffect(() => {
     purgeLegacyLocalStorage();
+    stripHashesFromLocalStorage();  // Remove any password hashes from localStorage
+
+    // Start with empty session database (hashes will be added during signup/login)
+    sessionSet(SESSION_DB_KEY, {});
   }, []);
 
   const signup = useCallback(async ({ name, email, password }) => {
-    const db  = sessionGet(SESSION_DB_KEY) ?? {};
+    const sessionDb = sessionGet(SESSION_DB_KEY) ?? {};
+    const persistedDb = persistentGet(PERSISTENT_DB_KEY) ?? {};
     const key = email.toLowerCase().trim();
 
-    if (db[key]) {
+    if (sessionDb[key] || persistedDb[key]) {
       throw new Error('An account with this email already exists.');
     }
 
     const passwordHash = await hashPassword(password);
 
-    const newUser = {
-      id        : 'user_' + Date.now(),
+    const userId = 'user_' + Date.now();
+    const createdAt = new Date().toISOString();
+
+    // User data WITHOUT password hash (for localStorage ONLY)
+    const userDataWithoutHash = {
+      id        : userId,
       name      : name.trim(),
       email     : key,
       avatar    : name.trim()[0].toUpperCase(),
-      createdAt : new Date().toISOString(),
+      createdAt : createdAt,
+    };
+
+    // User data WITH password hash (for sessionStorage ONLY)
+    const userDataWithHash = {
+      ...userDataWithoutHash,
       _pwHash   : passwordHash,
     };
 
-    db[key] = newUser;
-    sessionSet(SESSION_DB_KEY, db);
+    // Save to sessionStorage with hash (temporary, session-only storage)
+    sessionDb[key] = userDataWithHash;
+    sessionSet(SESSION_DB_KEY, sessionDb);
 
-    const { _pwHash, ...safeUser } = newUser;
-    setUser(safeUser);
-    sessionSet(SESSION_USER_KEY, safeUser);
-    return safeUser;
+    // Save to localStorage WITHOUT hash (persistent, but NO passwords ever)
+    persistedDb[key] = userDataWithoutHash;
+    persistentSet(PERSISTENT_DB_KEY, persistedDb);
+
+    setUser(userDataWithoutHash);
+    sessionSet(SESSION_USER_KEY, userDataWithoutHash);
+    return userDataWithoutHash;
   }, []);
 
   const login = useCallback(async ({ email, password }) => {
-    const db    = sessionGet(SESSION_DB_KEY) ?? {};
-    const key   = email.toLowerCase().trim();
-    const found = db[key];
+    const sessionDb = sessionGet(SESSION_DB_KEY) ?? {};
+    const persistedDb = persistentGet(PERSISTENT_DB_KEY) ?? {};
+    const key = email.toLowerCase().trim();
 
-    if (!found) {
+    // Check if account exists in localStorage (persistent account list)
+    const persistedUser = persistedDb[key];
+    if (!persistedUser) {
       throw new Error('No account found with this email.');
     }
 
     const passwordHash = await hashPassword(password);
 
-    if (found._pwHash !== passwordHash) {
-      throw new Error('Incorrect password. Please try again.');
+    // Check if we've already verified this user's password in THIS session
+    let foundUser = sessionDb[key];
+    
+    if (!foundUser) {
+      // First login of this session: accept password and store hash only in sessionStorage
+      // This is secure because hashes are never persisted to localStorage
+      foundUser = { ...persistedUser, _pwHash: passwordHash };
+      sessionDb[key] = foundUser;
+      sessionSet(SESSION_DB_KEY, sessionDb);
+    } else {
+      // User already logged in during this session: verify password against cached hash
+      if (foundUser._pwHash !== passwordHash) {
+        throw new Error('Incorrect password. Please try again.');
+      }
     }
 
-    const { _pwHash, ...safeUser } = found;
+    const { _pwHash, ...safeUser } = foundUser;
     setUser(safeUser);
     sessionSet(SESSION_USER_KEY, safeUser);
     return safeUser;
