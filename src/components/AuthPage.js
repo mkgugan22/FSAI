@@ -29,6 +29,12 @@ function validatePassword(value, mode) {
   return '';
 }
 
+function getPasswordHint(value) {
+  if (!value) return 'Start with a strong password: at least 8 characters.';
+  const failed = PASSWORD_RULES.find(rule => !rule.test(value));
+  return failed ? `Next: ${failed.label}.` : 'Great! Your password meets all requirements.';
+}
+
 function validateConfirm(password, confirm) {
   if (!confirm) return 'Please confirm your password.';
   if (password !== confirm) return 'Passwords do not match.';
@@ -194,19 +200,8 @@ export default function AuthPage() {
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             />
             {mode === 'signup' && (
-              <div className="auth-validation-list">
-                {PASSWORD_RULES.map((rule) => {
-                  const passed = rule.test(form.password);
-                  return (
-                    <div
-                      key={rule.key}
-                      className={`auth-validation-item ${passed ? 'valid' : 'invalid'}`}
-                    >
-                      <span className="auth-validation-icon">{passed ? '✔' : '•'}</span>
-                      {rule.label}
-                    </div>
-                  );
-                })}
+              <div className="auth-field-note auth-password-hint">
+                {getPasswordHint(form.password)}
               </div>
             )}
             {!formErrors.password && mode === 'login' && form.password && (
