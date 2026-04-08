@@ -5,16 +5,71 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import './AuthPage.css';
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_RULES = [
+  { key: 'length', label: 'At least 8 characters', test: (value) => value.length >= 8 },
+  { key: 'uppercase', label: 'One uppercase letter', test: (value) => /[A-Z]/.test(value) },
+  { key: 'lowercase', label: 'One lowercase letter', test: (value) => /[a-z]/.test(value) },
+  { key: 'number', label: 'At least one number', test: (value) => /[0-9]/.test(value) },
+  { key: 'special', label: 'At least one special character', test: (value) => /[!@#$%^&*(),.?":{}|<>]/.test(value) },
+];
+
+function validateEmail(value) {
+  if (!value.trim()) return 'Please enter your email address.';
+  if (!EMAIL_REGEX.test(value.trim())) return 'Please enter a valid email address.';
+  return '';
+}
+
+function validatePassword(value, mode) {
+  if (!value) return 'Please enter your password.';
+  if (mode === 'signup') {
+    const failed = PASSWORD_RULES.find(rule => !rule.test(value));
+    if (failed) return `Password must include: ${failed.label.toLowerCase()}.`;
+  }
+  return '';
+}
+
+function validateConfirm(password, confirm) {
+  if (!confirm) return 'Please confirm your password.';
+  if (password !== confirm) return 'Passwords do not match.';
+  return '';
+}
+
 export default function AuthPage() {
   const { login, signup } = useAuth();
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
+  const [formErrors, setFormErrors] = useState({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handle = (field) => (e) => {
-    setForm(f => ({ ...f, [field]: e.target.value }));
+    const value = e.target.value;
+    setForm((f) => ({ ...f, [field]: value }));
     setError('');
+
+    setFormErrors((prev) => ({
+      ...prev,
+      [field]:
+        field === 'email'
+          ? validateEmail(value)
+          : field === 'password'
+          ? validatePassword(value, mode)
+          : field === 'confirm'
+          ? validateConfirm(form.password, value)
+          : field === 'name'
+          ? value.trim()
+            ? ''
+            : 'Please enter your full name.'
+          : prev[field],
+    }));
+
+    if (field === 'password' && mode === 'signup') {
+      setFormErrors((prev) => ({
+        ...prev,
+        confirm: validateConfirm(value, form.confirm),
+      }));
+    }
   };
 
   const submit = async (e) => {
@@ -22,17 +77,26 @@ export default function AuthPage() {
     setError('');
     setLoading(true);
 
+    const errors = {
+      ...(mode === 'signup' ? { name: form.name.trim() ? '' : 'Please enter your full name.' } : {}),
+      email: validateEmail(form.email),
+      password: validatePassword(form.password, mode),
+      ...(mode === 'signup' ? { confirm: validateConfirm(form.password, form.confirm) } : {}),
+    };
+
+    const hasErrors = Object.values(errors).some(Boolean);
+    if (hasErrors) {
+      setFormErrors(errors);
+      setError(Object.values(errors).find(Boolean));
+      setLoading(false);
+      return;
+    }
+
     try {
       if (mode === 'signup') {
-        if (!form.name.trim()) throw new Error('Please enter your name.');
-        if (!form.email.trim()) throw new Error('Please enter your email.');
-        if (form.password.length < 6) throw new Error('Password must be at least 6 characters.');
-        if (form.password !== form.confirm) throw new Error('Passwords do not match.');
-        await signup({ name: form.name, email: form.email, password: form.password });
+        await signup({ name: form.name.trim(), email: form.email.trim(), password: form.password });
       } else {
-        if (!form.email.trim()) throw new Error('Please enter your email.');
-        if (!form.password) throw new Error('Please enter your password.');
-        await login({ email: form.email, password: form.password });
+        await login({ email: form.email.trim(), password: form.password });
       }
     } catch (err) {
       setError(err.message);
@@ -44,6 +108,7 @@ export default function AuthPage() {
   const switchMode = () => {
     setMode(m => m === 'login' ? 'signup' : 'login');
     setForm({ name: '', email: '', password: '', confirm: '' });
+    setFormErrors({});
     setError('');
   };
 
@@ -107,7 +172,7 @@ export default function AuthPage() {
           <div className="auth-field">
             <label className="auth-label">Email Address</label>
             <input
-              className="auth-input"
+              className={`auth-input ${formErrors.email ? 'invalid' : ''}`}
               type="email"
               placeholder="you@example.com"
               value={form.email}
@@ -115,31 +180,53 @@ export default function AuthPage() {
               autoComplete="email"
               autoFocus={mode === 'login'}
             />
+            {formErrors.email && <div className="auth-field-note error-note">{formErrors.email}</div>}
           </div>
 
           <div className="auth-field">
             <label className="auth-label">Password</label>
             <input
-              className="auth-input"
+              className={`auth-input ${formErrors.password ? 'invalid' : ''}`}
               type="password"
-              placeholder={mode === 'signup' ? 'At least 6 characters' : 'Enter password'}
+              placeholder={mode === 'signup' ? 'Strong password required' : 'Enter password'}
               value={form.password}
               onChange={handle('password')}
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             />
+            {mode === 'signup' && (
+              <div className="auth-validation-list">
+                {PASSWORD_RULES.map((rule) => {
+                  const passed = rule.test(form.password);
+                  return (
+                    <div
+                      key={rule.key}
+                      className={`auth-validation-item ${passed ? 'valid' : 'invalid'}`}
+                    >
+                      <span className="auth-validation-icon">{passed ? '✔' : '•'}</span>
+                      {rule.label}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {!formErrors.password && mode === 'login' && form.password && (
+              <div className="auth-field-note">Password will be validated securely.</div>
+            )}
+            {formErrors.password && <div className="auth-field-note error-note">{formErrors.password}</div>}
           </div>
 
           {mode === 'signup' && (
             <div className="auth-field">
               <label className="auth-label">Confirm Password</label>
               <input
-                className="auth-input"
+                className={`auth-input ${formErrors.confirm ? 'invalid' : ''}`}
                 type="password"
                 placeholder="Re-enter password"
                 value={form.confirm}
                 onChange={handle('confirm')}
                 autoComplete="new-password"
               />
+              {formErrors.confirm && <div className="auth-field-note error-note">{formErrors.confirm}</div>}
             </div>
           )}
 
