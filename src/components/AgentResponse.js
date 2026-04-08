@@ -1,14 +1,60 @@
 // ═══════════════════════════════════════
-// FSAI – AgentResponse
+// FSAI – AgentResponse (with full markdown rendering)
 // ═══════════════════════════════════════
 import React, { useState } from 'react';
 import { getLayerMeta } from '../utils/parser';
 import './AgentResponse.css';
 
-function normalizeLine(line) {
-  return line.trim();
+// ── Inline Markdown Renderer ─────────────────────────────────
+// Handles: **bold**, *italic*, `code`, [link](url), ~~strike~~
+function renderInline(text) {
+  if (!text) return null;
+  const parts = [];
+  // Combined regex for all inline patterns
+  const pattern = /(\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`|~~(.+?)~~|\[([^\]]+)\]\(([^)]+)\))/g;
+  let last = 0;
+  let match;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > last) {
+      parts.push(text.slice(last, match.index));
+    }
+
+    if (match[2]) {
+      // ***bold italic***
+      parts.push(<strong key={match.index}><em>{match[2]}</em></strong>);
+    } else if (match[3]) {
+      // **bold**
+      parts.push(<strong key={match.index}>{match[3]}</strong>);
+    } else if (match[4]) {
+      // *italic*
+      parts.push(<em key={match.index}>{match[4]}</em>);
+    } else if (match[5]) {
+      // `inline code`
+      parts.push(<code key={match.index} className="inline-code">{match[5]}</code>);
+    } else if (match[6]) {
+      // ~~strikethrough~~
+      parts.push(<del key={match.index}>{match[6]}</del>);
+    } else if (match[7] && match[8]) {
+      // [link](url)
+      parts.push(
+        <a key={match.index} href={match[8]} target="_blank" rel="noopener noreferrer" className="md-link">
+          {match[7]}
+        </a>
+      );
+    }
+
+    last = match.index + match[0].length;
+  }
+
+  if (last < text.length) {
+    parts.push(text.slice(last));
+  }
+
+  return parts.length === 0 ? text : parts;
 }
 
+// ── Block Markdown Renderer ──────────────────────────────────
 function renderMarkdownContent(text) {
   if (!text) return null;
   const lines = text.replace(/\r\n/g, '\n').split('\n');
@@ -18,9 +64,10 @@ function renderMarkdownContent(text) {
   while (idx < lines.length) {
     const line = lines[idx];
 
+    // Fenced code block
     if (/^```/.test(line)) {
       const lang = line.slice(3).trim() || 'text';
-      let codeLines = [];
+      const codeLines = [];
       idx += 1;
       while (idx < lines.length && !/^```/.test(lines[idx])) {
         codeLines.push(lines[idx]);
@@ -28,6 +75,10 @@ function renderMarkdownContent(text) {
       }
       blocks.push(
         <div className="code-block markdown-code" key={`code-${idx}`}>
+          <div className="code-topbar-mini">
+            <span className="code-lang-mini">{lang.toUpperCase()}</span>
+            <InlineCopyBtn code={codeLines.join('\n')} />
+          </div>
           <pre className="code-pre"><code>{codeLines.join('\n')}</code></pre>
         </div>
       );
@@ -35,40 +86,62 @@ function renderMarkdownContent(text) {
       continue;
     }
 
-    const headingMatch = /^(#{1,6})\s*(.+)$/.exec(line);
+    // Horizontal rule
+    if (/^---+$/.test(line.trim()) || /^\*\*\*+$/.test(line.trim())) {
+      blocks.push(<hr key={`hr-${idx}`} className="md-hr" />);
+      idx += 1;
+      continue;
+    }
+
+    // Headings
+    const headingMatch = /^(#{1,6})\s+(.+)$/.exec(line);
     if (headingMatch) {
       const level = headingMatch[1].length;
-      const tag = level <= 2 ? 'h3' : 'h4';
-      const Heading = tag;
       blocks.push(
-        <Heading className={`md-heading md-heading-${level}`} key={`heading-${idx}`}>
-          {headingMatch[2].trim()}
-        </Heading>
+        <div key={`h-${idx}`} className={`md-heading md-heading-${level}`}>
+          {renderInline(headingMatch[2].trim())}
+        </div>
       );
       idx += 1;
       continue;
     }
 
-    if (/^\s*\|/.test(line) && idx + 1 < lines.length && /^\s*\|[\s:-]+\|/.test(lines[idx + 1])) {
+    // Blockquote
+    if (/^>\s/.test(line)) {
+      const qLines = [];
+      while (idx < lines.length && /^>\s/.test(lines[idx])) {
+        qLines.push(lines[idx].slice(2));
+        idx += 1;
+      }
+      blocks.push(
+        <blockquote key={`bq-${idx}`} className="md-blockquote">
+          {qLines.map((l, i) => <p key={i}>{renderInline(l)}</p>)}
+        </blockquote>
+      );
+      continue;
+    }
+
+    // Table
+    if (/^\s*\|/.test(line) && idx + 1 < lines.length && /^\s*\|[\s|:-]+\|/.test(lines[idx + 1])) {
       const tableLines = [line];
-      idx += 2;
+      idx += 2; // skip separator
       while (idx < lines.length && /^\s*\|/.test(lines[idx])) {
         tableLines.push(lines[idx]);
         idx += 1;
       }
-      const rows = tableLines.map((row) => row.trim().replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim()));
+      const rows = tableLines.map(row =>
+        row.trim().replace(/^\||\|$/g, '').split('|').map(cell => cell.trim())
+      );
       const [header, ...body] = rows;
       blocks.push(
         <div className="md-table-wrapper" key={`table-${idx}`}>
           <table className="md-table">
             <thead>
-              <tr>{header.map((cell, cellIndex) => <th key={`th-${idx}-${cellIndex}`}>{cell}</th>)}</tr>
+              <tr>{header.map((cell, ci) => <th key={ci}>{renderInline(cell)}</th>)}</tr>
             </thead>
             <tbody>
-              {body.map((row, rowIndex) => (
-                <tr key={`row-${idx}-${rowIndex}`}>
-                  {row.map((cell, cellIndex) => <td key={`td-${idx}-${rowIndex}-${cellIndex}`}>{cell}</td>)}
-                </tr>
+              {body.map((row, ri) => (
+                <tr key={ri}>{row.map((cell, ci) => <td key={ci}>{renderInline(cell)}</td>)}</tr>
               ))}
             </tbody>
           </table>
@@ -77,47 +150,79 @@ function renderMarkdownContent(text) {
       continue;
     }
 
+    // Ordered / unordered list
     if (/^\s*([-*+]|\d+\.)\s+/.test(line)) {
+      const isOrdered = /^\s*\d+\./.test(line);
       const items = [];
-      const ordered = /^\s*\d+\./.test(line);
+
       while (idx < lines.length && /^\s*([-*+]|\d+\.)\s+/.test(lines[idx])) {
-        const nextLine = lines[idx].replace(/^\s*([-*+]|\d+\.)\s+/, '').trim();
-        items.push(nextLine);
+        const itemText = lines[idx].replace(/^\s*([-*+]|\d+\.)\s+/, '').trim();
+        // Check for sub-items on next lines (indented continuation)
+        const subLines = [itemText];
         idx += 1;
+        while (idx < lines.length && /^\s{2,}/.test(lines[idx]) && !/^\s*([-*+]|\d+\.)\s+/.test(lines[idx])) {
+          subLines.push(lines[idx].trim());
+          idx += 1;
+        }
+        items.push(subLines.join(' '));
       }
+
+      const ListTag = isOrdered ? 'ol' : 'ul';
       blocks.push(
-        ordered ? (
-          <ol className="md-list" key={`list-${idx}`}>
-            {items.map((item, i) => <li key={i}>{item}</li>)}
-          </ol>
-        ) : (
-          <ul className="md-list" key={`list-${idx}`}>
-            {items.map((item, i) => <li key={i}>{item}</li>)}
-          </ul>
-        )
+        <ListTag key={`list-${idx}`} className="md-list">
+          {items.map((item, i) => <li key={i}>{renderInline(item)}</li>)}
+        </ListTag>
       );
       continue;
     }
 
-    if (normalizeLine(line).length === 0) {
+    // Skip empty lines
+    if (line.trim().length === 0) {
       idx += 1;
       continue;
     }
 
-    const paragraphLines = [line];
+    // Paragraph — gather contiguous non-special lines
+    const paraLines = [line];
     idx += 1;
-    while (idx < lines.length && normalizeLine(lines[idx]).length > 0 && !/^#{1,6}\s+/.test(lines[idx]) && !/^\s*\|/.test(lines[idx]) && !/^\s*([-*+]|\d+\.)\s+/.test(lines[idx]) && !/^```/.test(lines[idx])) {
-      paragraphLines.push(lines[idx]);
+    while (
+      idx < lines.length &&
+      lines[idx].trim().length > 0 &&
+      !/^#{1,6}\s/.test(lines[idx]) &&
+      !/^\s*\|/.test(lines[idx]) &&
+      !/^\s*([-*+]|\d+\.)\s/.test(lines[idx]) &&
+      !/^```/.test(lines[idx]) &&
+      !/^>\s/.test(lines[idx]) &&
+      !/^---+$/.test(lines[idx].trim())
+    ) {
+      paraLines.push(lines[idx]);
       idx += 1;
     }
+
     blocks.push(
-      <p className="body-text md-paragraph" key={`para-${idx}`}>
-        {paragraphLines.join(' ').trim()}
+      <p key={`p-${idx}`} className="body-text md-paragraph">
+        {renderInline(paraLines.join(' ').trim())}
       </p>
     );
   }
 
   return blocks;
+}
+
+// ── Inline Copy Button (for code inside markdown) ────────────
+function InlineCopyBtn({ code }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  return (
+    <button className="copy-btn" onClick={copy}>
+      {copied ? '✓ Copied' : '⎘ Copy'}
+    </button>
+  );
 }
 
 // ── Section Card ─────────────────────────────────────────────
@@ -162,7 +267,7 @@ function CodeBlock({ code, language }) {
   );
 }
 
-// ── Fix Section (handles Option 1 / Option 2) ────────────────
+// ── Fix Section ───────────────────────────────────────────────
 function FixSection({ fix }) {
   if (!fix) return null;
 
@@ -206,11 +311,9 @@ export default function AgentResponse({ parsed, raw }) {
   const { isStructured, errorType, layer, rootCause, fix, codePatch, codeLanguage, explanation } = parsed;
   const layerMeta = getLayerMeta(layer || '');
 
-  const renderRich = (text) => renderMarkdownContent(text || '');
-
-  // Fallback: plain text (try to avoid raw markdown look)
+  // Fallback: plain text with full markdown rendering
   if (!isStructured) {
-    return <div className="response-plain">{renderRich(raw)}</div>;
+    return <div className="response-plain">{renderMarkdownContent(raw)}</div>;
   }
 
   return (
@@ -225,7 +328,7 @@ export default function AgentResponse({ parsed, raw }) {
             bg="var(--red-dim)"
             border="rgba(239,68,68,0.25)"
           >
-            <p className="body-text highlight-red">{errorType}</p>
+            <p className="body-text highlight-red">{renderInline(errorType)}</p>
           </SectionCard>
         )}
         {layer && (
@@ -236,14 +339,21 @@ export default function AgentResponse({ parsed, raw }) {
             bg={layerMeta.bg}
             border={`${layerMeta.color}40`}
           >
-            <div className="layer-pill" style={{ background: layerMeta.bg, border: `1px solid ${layerMeta.color}50`, color: layerMeta.color }}>
+            <div
+              className="layer-pill"
+              style={{
+                background: layerMeta.bg,
+                border: `1px solid ${layerMeta.color}50`,
+                color: layerMeta.color,
+              }}
+            >
               {layerMeta.label}
             </div>
           </SectionCard>
         )}
       </div>
 
-      {/* Row 2: Root Cause */}
+      {/* Root Cause */}
       {rootCause && (
         <SectionCard
           icon="🎯"
@@ -256,10 +366,10 @@ export default function AgentResponse({ parsed, raw }) {
         </SectionCard>
       )}
 
-      {/* Row 3: Fix */}
+      {/* Fix */}
       <FixSection fix={fix} />
 
-      {/* Row 4: Code Patch */}
+      {/* Code Patch */}
       {codePatch && (
         <SectionCard
           icon="⌨"
@@ -272,7 +382,7 @@ export default function AgentResponse({ parsed, raw }) {
         </SectionCard>
       )}
 
-      {/* Row 5: Explanation */}
+      {/* Explanation */}
       {explanation && (
         <SectionCard
           icon="💡"

@@ -7,34 +7,78 @@ import Header             from './components/Header';
 import Sidebar            from './components/Sidebar';
 import MessageList        from './components/MessageList';
 import ChatInput          from './components/ChatInput';
+import AuthPage           from './components/AuthPage';
 import { useChat }        from './hooks/useChat';
+import { useAuth }        from './context/AuthContext';
 import './App.css';
 
+// ── Per-user recents helpers ──────────────────────────────────────────────────
+function recentsKey(userId) {
+  return `fsai_recents_${userId}`;
+}
+
+function loadRecents(userId) {
+  try {
+    const raw = localStorage.getItem(recentsKey(userId));
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecents(userId, recents) {
+  try {
+    localStorage.setItem(recentsKey(userId), JSON.stringify(recents));
+  } catch {}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function App() {
+  const { user } = useAuth();
   const { messages, isLoading, sendMessage, clearChat } = useChat();
-  const [sidebarOpen, setSidebarOpen]                   = useState(false);   // mobile drawer
-  const [sidebarCollapsed, setSidebarCollapsed]         = useState(false);   // desktop collapse
-  const [quickInput, setQuickInput]                     = useState('');
-  const [conversationHistory, setConversationHistory]   = useState([]);
+  const [sidebarOpen, setSidebarOpen]           = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [quickInput, setQuickInput]             = useState('');
   const chatInputRef = useRef(null);
 
-  // Store conversation history when messages change
+  // ── Conversation history: initialised from the logged-in user's storage ──
+  const [conversationHistory, setConversationHistory] = useState(() =>
+    user ? loadRecents(user.id) : []
+  );
+
+  // ── Reset recents whenever the active user changes (login / logout / switch) ──
+  const prevUserIdRef = useRef(user?.id ?? null);
   useEffect(() => {
-    if (messages.length > 0) {
-      const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content;
-      if (lastUserMsg && !conversationHistory.some(h => h.text === lastUserMsg)) {
-        setConversationHistory(prev =>
-          [{ id: Date.now(), text: lastUserMsg, timestamp: new Date() }, ...prev].slice(0, 20)
-        );
-      }
+    const currentId = user?.id ?? null;
+    if (currentId !== prevUserIdRef.current) {
+      prevUserIdRef.current = currentId;
+      setConversationHistory(currentId ? loadRecents(currentId) : []);
     }
+  }, [user]);
+
+  // ── Append new user queries to recents and persist them ──────────────────
+  useEffect(() => {
+    if (!user || messages.length === 0) return;
+
+    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user')?.content;
+    if (!lastUserMsg) return;
+
+    setConversationHistory(prev => {
+      if (prev.some(h => h.text === lastUserMsg)) return prev;
+      const updated = [
+        { id: Date.now(), text: lastUserMsg, timestamp: new Date() },
+        ...prev,
+      ].slice(0, 20);
+      saveRecents(user.id, updated);
+      return updated;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
-  // Inject text into ChatInput without remounting (preserves messages)
   const handleQuickPrompt = useCallback((text) => {
     setQuickInput(text);
-    setSidebarOpen(false); // close mobile drawer after selection
+    setSidebarOpen(false);
   }, []);
 
   const handleLoadConversation = useCallback((text) => {
@@ -42,10 +86,19 @@ export default function App() {
     setSidebarOpen(false);
   }, []);
 
-  // Clear quickInput after ChatInput consumes it
   const handleQuickInputConsumed = useCallback(() => {
     setQuickInput('');
   }, []);
+
+  const handleClearHistory = useCallback(() => {
+    setConversationHistory([]);
+    if (user) saveRecents(user.id, []);
+  }, [user]);
+
+  // Show auth page when not logged in
+  if (!user) {
+    return <AuthPage />;
+  }
 
   return (
     <div className="app">
@@ -72,7 +125,7 @@ export default function App() {
           onMobileClose={() => setSidebarOpen(false)}
           conversationHistory={conversationHistory}
           onLoadConversation={handleLoadConversation}
-          onClearHistory={() => setConversationHistory([])}
+          onClearHistory={handleClearHistory}
         />
 
         <div className="chat-panel">

@@ -1,8 +1,9 @@
 // ═══════════════════════════════════════
-// FSAI – Header
+// FSAI – Header (with Auth User Display)
 // ═══════════════════════════════════════
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import './Header.css';
 
 const STACK_LABELS = [
@@ -13,12 +14,25 @@ const STACK_LABELS = [
 
 export default function Header({ messageCount, onClear, onMenuToggle }) {
   const { isDarkMode, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  // Close user menu on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   return (
     <header className="header">
       {/* Left – Mobile menu + Logo */}
       <div className="header-logo">
-        {/* Mobile hamburger */}
         <button
           className="mobile-menu-btn"
           onClick={onMenuToggle}
@@ -50,7 +64,7 @@ export default function Header({ messageCount, onClear, onMenuToggle }) {
         ))}
       </div>
 
-      {/* Right – Status */}
+      {/* Right – Controls */}
       <div className="header-right">
         {messageCount > 0 && (
           <button className="clear-btn" onClick={onClear} title="Clear conversation">
@@ -72,6 +86,40 @@ export default function Header({ messageCount, onClear, onMenuToggle }) {
           <span className="status-dot" />
           ONLINE
         </div>
+
+        {/* User Avatar + Menu */}
+        {user && (
+          <div className="user-menu-wrap" ref={menuRef}>
+            <button
+              className="user-avatar-btn"
+              onClick={() => setMenuOpen(o => !o)}
+              title={user.name}
+              aria-label="User menu"
+            >
+              <span className="user-avatar-char">{user.avatar}</span>
+            </button>
+
+            {menuOpen && (
+              <div className="user-dropdown">
+                <div className="user-dropdown-info">
+                  <div className="user-dropdown-avatar">{user.avatar}</div>
+                  <div className="user-dropdown-details">
+                    <span className="user-dropdown-name">{user.name}</span>
+                    <span className="user-dropdown-email">{user.email}</span>
+                  </div>
+                </div>
+                <div className="user-dropdown-divider" />
+                <button
+                  className="user-dropdown-logout"
+                  onClick={() => { setMenuOpen(false); logout(); }}
+                >
+                  <span>⎋</span> Sign Out
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="model-tag">G7</div>
       </div>
     </header>
