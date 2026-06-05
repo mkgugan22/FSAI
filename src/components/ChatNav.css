@@ -1,15 +1,16 @@
 /* ═══════════════════════════════════════
    FSAI – ChatNav (Prompt Navigator)
-   Floating panel on the right showing all
-   user prompts as clickable scroll-anchors.
 ═══════════════════════════════════════ */
 
-/* ── Trigger button ── */
+/* ── Trigger — sticky to bottom-right, always visible ── */
 .chatnav-trigger {
-  position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
+  position: sticky;
+  bottom: 20px;
+  /* align to the right edge via a wrapping flex trick in MessageList,
+     but here we use a self-contained sticky block */
+  float: right;
+  margin-right: 20px;
+  margin-top: -56px;   /* zero-height effect, same as scroll-nav */
   z-index: 25;
   width: 34px;
   height: 34px;
@@ -22,31 +23,37 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.2s ease, background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
   backdrop-filter: blur(12px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
   flex-shrink: 0;
+}
+
+/* The trigger lives inside .message-list which is
+   position:relative, so we switch to absolute for
+   reliable corner-anchoring across all viewports.    */
+.message-list {
+  /* already has position:relative via MessageList.css */
+}
+
+/* Override: use absolute positioning anchored to bottom-right of .message-list */
+.chatnav-trigger {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  float: none;
+  margin: 0;
 }
 
 .chatnav-trigger:hover {
   background: var(--cyan-dim);
   border-color: var(--cyan);
   color: var(--cyan);
-  transform: translateY(-50%) scale(1.08);
+  transform: scale(1.1);
 }
 
 .chatnav-trigger:active {
-  transform: translateY(-50%) scale(0.95);
-}
-
-.chatnav-trigger.hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.chatnav-trigger.visible {
-  opacity: 1;
-  pointer-events: all;
+  transform: scale(0.94);
 }
 
 /* count badge */
@@ -75,8 +82,7 @@
 .chatnav-panel {
   position: absolute;
   right: 62px;
-  top: 50%;
-  transform: translateY(-50%);
+  bottom: 20px;    /* anchored to bottom like the trigger */
   z-index: 30;
   width: 264px;
   max-height: 340px;
@@ -89,11 +95,12 @@
   flex-direction: column;
   overflow: hidden;
   animation: chatnav-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: bottom right;
 }
 
 @keyframes chatnav-in {
-  from { opacity: 0; transform: translateY(-50%) scaleX(0.88) scaleY(0.94); }
-  to   { opacity: 1; transform: translateY(-50%) scaleX(1)    scaleY(1); }
+  from { opacity: 0; transform: scale(0.9) translateY(8px); }
+  to   { opacity: 1; transform: scale(1)   translateY(0); }
 }
 
 [data-theme="light"] .chatnav-panel {
@@ -153,10 +160,7 @@
 
 .chatnav-list::-webkit-scrollbar { width: 4px; }
 .chatnav-list::-webkit-scrollbar-track { background: transparent; }
-.chatnav-list::-webkit-scrollbar-thumb {
-  background: var(--border2);
-  border-radius: 2px;
-}
+.chatnav-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 
 /* individual prompt item */
 .chatnav-item {
@@ -190,7 +194,7 @@
   color: var(--cyan);
 }
 
-/* index number chip */
+/* index chip */
 .chatnav-item-index {
   flex-shrink: 0;
   width: 18px;
@@ -222,7 +226,7 @@
   min-width: 0;
 }
 
-/* arrow */
+/* navigation arrow */
 .chatnav-item-arrow {
   flex-shrink: 0;
   font-size: 10px;
@@ -238,38 +242,22 @@
 
 /* ── Responsive ── */
 @media (max-width: 900px) {
-  .chatnav-panel { width: 228px; right: 56px; }
+  .chatnav-panel { width: 228px; right: 58px; }
 }
 
 @media (max-width: 768px) {
-  .chatnav-trigger { right: 14px; }
-  .chatnav-panel { width: 210px; right: 56px; max-height: 280px; }
+  .chatnav-trigger { right: 14px; bottom: 16px; }
+  .chatnav-panel   { width: 210px; right: 56px; max-height: 280px; bottom: 16px; }
 }
 
-/* On small phones: anchor to bottom-right, above the input bar */
 @media (max-width: 540px) {
-  .chatnav-trigger {
-    right: 10px;
-    top: auto;
-    bottom: 14px;
-    transform: none;
-  }
-  .chatnav-trigger:hover  { transform: scale(1.08); }
-  .chatnav-trigger:active { transform: scale(0.95); }
-
+  .chatnav-trigger { right: 10px; bottom: 64px; }
   .chatnav-panel {
     right: 0;
-    top: auto;
-    bottom: 56px;
-    transform: none;
-    border-bottom-right-radius: 0;
-    border-top-right-radius: 0;
+    bottom: 108px;
     width: 210px;
     max-height: 260px;
-  }
-
-  @keyframes chatnav-in {
-    from { opacity: 0; transform: scaleY(0.9) translateY(8px); }
-    to   { opacity: 1; transform: scaleY(1)   translateY(0); }
+    border-bottom-right-radius: 0;
+    border-top-right-radius: 0;
   }
 }
