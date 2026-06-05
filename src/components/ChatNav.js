@@ -1,16 +1,14 @@
 // ═══════════════════════════════════════
-// FSAI – ChatNav
-// Floating right-side panel showing all
-// user prompts as scroll-to anchors,
-// inspired by the ChatGPT prompt navigator.
+// FSAI – ChatNav (Prompt Navigator)
+// Floating panel listing all user prompts
+// as scroll-to anchors. Always visible
+// once the chat has messages.
 // ═══════════════════════════════════════
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import './ChatNav.css';
 
-/**
- * Truncates a string to `max` chars, appending ellipsis.
- */
-function truncate(str, max = 48) {
+/** Truncate to max chars with ellipsis */
+function truncate(str, max = 46) {
   if (!str) return '';
   const clean = str.replace(/\s+/g, ' ').trim();
   return clean.length > max ? clean.slice(0, max) + '\u2026' : clean;
@@ -20,17 +18,17 @@ function truncate(str, max = 48) {
  * ChatNav
  *
  * Props:
- *   userPrompts   - array of { id, content } (only user-role messages)
- *   scrollRef     - ref to the .message-list scroll container
- *   msgRefs       - ref-map { [msgId]: DOM element } populated by MessageList
- *   isVisible     - whether the trigger button should show (false when chat is empty)
+ *   userPrompts  – [{ id, content }]  ordered user messages
+ *   scrollRef    – ref to .message-list container
+ *   msgRefs      – ref map { [msgId]: DOMElement }
+ *   isVisible    – false when chat is empty (hides everything)
  */
 export default function ChatNav({ userPrompts, scrollRef, msgRefs, isVisible }) {
-  const [open, setOpen]         = useState(false);
+  const [open,     setOpen]     = useState(false);
   const [activeId, setActiveId] = useState(null);
   const panelRef                = useRef(null);
 
-  // Close on outside click
+  // ── Close panel on outside click ─────────────────────────────────────────
   useEffect(() => {
     if (!open) return;
     const handler = (e) => {
@@ -45,15 +43,13 @@ export default function ChatNav({ userPrompts, scrollRef, msgRefs, isVisible }) 
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  // Track which prompt is currently in view via IntersectionObserver
+  // ── Highlight whichever prompt is currently visible ───────────────────────
   useEffect(() => {
     if (!scrollRef?.current || userPrompts.length === 0) return;
 
     const root = scrollRef.current;
-
     const observer = new IntersectionObserver(
       (entries) => {
-        // Pick the topmost visible user-message
         const visible = entries
           .filter(e => e.isIntersecting)
           .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
@@ -74,7 +70,7 @@ export default function ChatNav({ userPrompts, scrollRef, msgRefs, isVisible }) 
     return () => observer.disconnect();
   }, [userPrompts, scrollRef, msgRefs]);
 
-  // Scroll to a specific message
+  // ── Jump to a message ─────────────────────────────────────────────────────
   const jumpTo = useCallback((id) => {
     const el = msgRefs.current?.[id];
     if (!el || !scrollRef?.current) return;
@@ -83,23 +79,32 @@ export default function ChatNav({ userPrompts, scrollRef, msgRefs, isVisible }) 
     if (window.innerWidth <= 540) setOpen(false);
   }, [msgRefs, scrollRef]);
 
+  // Never render when chat is empty
   if (!isVisible || userPrompts.length === 0) return null;
 
   return (
     <>
+      {/* ── Trigger — always visible ── */}
       <button
-        className={`chatnav-trigger ${isVisible ? 'visible' : 'hidden'}`}
+        className="chatnav-trigger"
         onClick={() => setOpen(o => !o)}
         title="Prompt navigator"
         aria-label="Toggle prompt navigator"
         aria-expanded={open}
       >
+        {/* hamburger lines via unicode */}
         &#9776;
         <span className="chatnav-trigger-badge">{userPrompts.length}</span>
       </button>
 
+      {/* ── Popup panel ── */}
       {open && (
-        <div className="chatnav-panel" ref={panelRef} role="navigation" aria-label="Prompt navigator">
+        <div
+          className="chatnav-panel"
+          ref={panelRef}
+          role="navigation"
+          aria-label="Prompt navigator"
+        >
           <div className="chatnav-header">
             <span className="chatnav-title">Prompts</span>
             <button
@@ -121,7 +126,7 @@ export default function ChatNav({ userPrompts, scrollRef, msgRefs, isVisible }) 
                 role="listitem"
               >
                 <span className="chatnav-item-index">{idx + 1}</span>
-                <span className="chatnav-item-text">{truncate(prompt.content, 46)}</span>
+                <span className="chatnav-item-text">{truncate(prompt.content)}</span>
                 <span className="chatnav-item-arrow">&#8594;</span>
               </button>
             ))}
