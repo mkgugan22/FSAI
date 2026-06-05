@@ -30,7 +30,7 @@
   flex-shrink: 0;
 }
 
-/* ── Scroll Nav Buttons ── */
+/* ── Scroll nav buttons (top / bottom) ─────────────────────────── */
 .scroll-nav {
   position: absolute;
   right: 20px;
@@ -54,7 +54,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s, border-color 0.2s, color 0.2s;
+  transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s,
+              border-color 0.2s, color 0.2s;
   pointer-events: all;
   backdrop-filter: blur(12px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
@@ -99,7 +100,7 @@
 
 @keyframes ping {
   0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.4); opacity: 0.7; }
+  50%       { transform: scale(1.4); opacity: 0.7; }
 }
 
 /* ── Tablet ── */
@@ -127,7 +128,7 @@
   }
   .scroll-nav {
     right: 10px;
-    bottom: 14px;
+    bottom: 60px; /* lifted to avoid overlapping chatnav trigger on mobile */
   }
   .scroll-nav-btn {
     width: 32px;
