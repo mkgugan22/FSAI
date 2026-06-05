@@ -8,19 +8,18 @@ import WelcomeScreen from './WelcomeScreen';
 import ChatNav from './ChatNav';
 import './MessageList.css';
 
-// How many px from the bottom counts as "at the bottom"
+// px from bottom that counts as "at the bottom"
 const BOTTOM_THRESHOLD = 80;
-// How many px from the top before scroll buttons appear
-const TOP_THRESHOLD = 200;
 
 export default function MessageList({ messages, isLoading, onChipClick }) {
   const bottomRef    = useRef(null);
   const containerRef = useRef(null);
-  // Map of msgId -> DOM element; populated by callback refs on each message row
+  // Map of msgId → DOM element; populated by callback refs on each message row
   const msgRefs      = useRef({});
 
-  const [showTop,    setShowTop]    = useState(false);
-  const [showBottom, setShowBottom] = useState(false);
+  // true  = user is near bottom (show ↑ arrow)
+  // false = user is near top   (show ↓ arrow)
+  const [nearBottom, setNearBottom] = useState(true);
   const [hasUnread,  setHasUnread]  = useState(false);
 
   const nearBottomRef = useRef(true);
@@ -32,12 +31,10 @@ export default function MessageList({ messages, isLoading, onChipClick }) {
 
     const { scrollTop, scrollHeight, clientHeight } = el;
     const distFromBottom = scrollHeight - scrollTop - clientHeight;
-
     const atBottom = distFromBottom <= BOTTOM_THRESHOLD;
-    nearBottomRef.current = atBottom;
 
-    setShowTop(scrollTop > TOP_THRESHOLD);
-    setShowBottom(!atBottom && scrollHeight > clientHeight + TOP_THRESHOLD);
+    nearBottomRef.current = atBottom;
+    setNearBottom(atBottom);
 
     if (atBottom) setHasUnread(false);
   }, []);
@@ -49,7 +46,7 @@ export default function MessageList({ messages, isLoading, onChipClick }) {
     return () => el.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
 
-  // ── Auto-scroll on new messages (only when near bottom) ──────────────────
+  // ── Auto-scroll on new messages (only when already near bottom) ───────────
   useEffect(() => {
     if (nearBottomRef.current) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -60,14 +57,15 @@ export default function MessageList({ messages, isLoading, onChipClick }) {
     }
   }, [messages, isLoading]);
 
-  const scrollToTop = useCallback(() => {
-    containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
-
-  const scrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    setHasUnread(false);
-  }, []);
+  // Single smart scroll action: if near bottom → go to top; else → go to bottom
+  const handleScrollToggle = useCallback(() => {
+    if (nearBottom) {
+      containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setHasUnread(false);
+    }
+  }, [nearBottom]);
 
   // ── Derive ordered list of user prompts for ChatNav ───────────────────────
   const userPrompts = useMemo(
@@ -77,7 +75,7 @@ export default function MessageList({ messages, isLoading, onChipClick }) {
     [messages]
   );
 
-  // Callback-ref factory: registers each message's DOM node into msgRefs map
+  // Callback-ref factory: registers/unregisters each message's DOM node
   const getMsgRef = useCallback((id) => (el) => {
     if (el) {
       msgRefs.current[id] = el;
@@ -95,8 +93,6 @@ export default function MessageList({ messages, isLoading, onChipClick }) {
       ) : (
         <div className="messages-inner">
           {messages.map(msg => (
-            // Wrap each message in a div that carries a data-msgid attr
-            // so IntersectionObserver in ChatNav can read it back
             <div
               key={msg.id}
               ref={getMsgRef(msg.id)}
@@ -116,32 +112,21 @@ export default function MessageList({ messages, isLoading, onChipClick }) {
         </div>
       )}
 
-      {/* ── Scroll nav buttons (top / bottom) ── */}
+      {/* ── Single smart scroll button — always visible when chat has messages ── */}
       {!isEmpty && (
         <div className="scroll-nav" aria-hidden="true">
           <button
-            className={`scroll-nav-btn ${showTop ? 'visible' : 'hidden'}`}
-            onClick={scrollToTop}
-            title="Scroll to top"
-            tabIndex={showTop ? 0 : -1}
+            className="scroll-nav-btn visible"
+            onClick={handleScrollToggle}
+            title={nearBottom ? 'Scroll to top' : 'Scroll to bottom'}
           >
-            &#8593;
-          </button>
-
-          <button
-            className={`scroll-nav-btn ${showBottom ? 'visible' : 'hidden'}`}
-            onClick={scrollToBottom}
-            title="Scroll to bottom"
-            tabIndex={showBottom ? 0 : -1}
-            style={{ position: 'relative' }}
-          >
-            &#8595;
-            {hasUnread && <span className="unread-dot" />}
+            {nearBottom ? '\u2191' : '\u2193'}
+            {hasUnread && !nearBottom && <span className="unread-dot" />}
           </button>
         </div>
       )}
 
-      {/* ── ChatNav prompt navigator ── */}
+      {/* ── ChatNav prompt navigator — always visible when chat has messages ── */}
       <ChatNav
         userPrompts={userPrompts}
         scrollRef={containerRef}
