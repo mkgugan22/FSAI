@@ -1,0 +1,275 @@
+/* ═══════════════════════════════════════
+   FSAI – ChatNav (Prompt Navigator)
+   Floating panel on the right showing all
+   user prompts as clickable scroll-anchors.
+═══════════════════════════════════════ */
+
+/* ── Trigger button ── */
+.chatnav-trigger {
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 25;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease, background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  flex-shrink: 0;
+}
+
+.chatnav-trigger:hover {
+  background: var(--cyan-dim);
+  border-color: var(--cyan);
+  color: var(--cyan);
+  transform: translateY(-50%) scale(1.08);
+}
+
+.chatnav-trigger:active {
+  transform: translateY(-50%) scale(0.95);
+}
+
+.chatnav-trigger.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chatnav-trigger.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* count badge */
+.chatnav-trigger-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--cyan);
+  color: var(--bg);
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+/* ── Popup panel ── */
+.chatnav-panel {
+  position: absolute;
+  right: 62px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
+  width: 264px;
+  max-height: 340px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: chatnav-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes chatnav-in {
+  from { opacity: 0; transform: translateY(-50%) scaleX(0.88) scaleY(0.94); }
+  to   { opacity: 1; transform: translateY(-50%) scaleX(1)    scaleY(1); }
+}
+
+[data-theme="light"] .chatnav-panel {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+/* panel header */
+.chatnav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chatnav-title {
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 2.5px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.chatnav-close {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-subtle);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.chatnav-close:hover {
+  background: var(--surface2);
+  color: var(--text);
+}
+
+/* scrollable list */
+.chatnav-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overscroll-behavior: contain;
+}
+
+.chatnav-list::-webkit-scrollbar { width: 4px; }
+.chatnav-list::-webkit-scrollbar-track { background: transparent; }
+.chatnav-list::-webkit-scrollbar-thumb {
+  background: var(--border2);
+  border-radius: 2px;
+}
+
+/* individual prompt item */
+.chatnav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  text-align: left;
+  width: 100%;
+  line-height: 1.45;
+}
+
+.chatnav-item:hover {
+  background: var(--cyan-dim);
+  border-color: rgba(0, 210, 255, 0.2);
+  color: var(--text);
+}
+
+.chatnav-item.active {
+  background: var(--cyan-dim);
+  border-color: rgba(0, 210, 255, 0.35);
+  color: var(--cyan);
+}
+
+/* index number chip */
+.chatnav-item-index {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chatnav-item.active .chatnav-item-index {
+  background: var(--cyan-dim);
+  border-color: rgba(0, 210, 255, 0.3);
+  color: var(--cyan);
+}
+
+/* prompt text */
+.chatnav-item-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* arrow */
+.chatnav-item-arrow {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--cyan);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.chatnav-item:hover .chatnav-item-arrow,
+.chatnav-item.active .chatnav-item-arrow {
+  opacity: 1;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .chatnav-panel { width: 228px; right: 56px; }
+}
+
+@media (max-width: 768px) {
+  .chatnav-trigger { right: 14px; }
+  .chatnav-panel { width: 210px; right: 56px; max-height: 280px; }
+}
+
+/* On small phones: anchor to bottom-right, above the input bar */
+@media (max-width: 540px) {
+  .chatnav-trigger {
+    right: 10px;
+    top: auto;
+    bottom: 14px;
+    transform: none;
+  }
+  .chatnav-trigger:hover  { transform: scale(1.08); }
+  .chatnav-trigger:active { transform: scale(0.95); }
+
+  .chatnav-panel {
+    right: 0;
+    top: auto;
+    bottom: 56px;
+    transform: none;
+    border-bottom-right-radius: 0;
+    border-top-right-radius: 0;
+    width: 210px;
+    max-height: 260px;
+  }
+
+  @keyframes chatnav-in {
+    from { opacity: 0; transform: scaleY(0.9) translateY(8px); }
+    to   { opacity: 1; transform: scaleY(1)   translateY(0); }
+  }
+}
