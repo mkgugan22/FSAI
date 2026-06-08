@@ -1,60 +1,77 @@
 // ═══════════════════════════════════════
 // FSAI – Sidebar
-// Supports: Pin, Share, Rename, Archive, Delete
+// Features: Pin, Share (modal), Rename, Archive, Delete
 // ═══════════════════════════════════════
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { QUICK_PROMPTS } from '../utils/prompts';
 import './Sidebar.css';
 
-// ── Share Modal ───────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// ShareModal – rendered via React portal pattern (appended to body via state
+// in Sidebar so it escapes sidebar's overflow:hidden)
+// ─────────────────────────────────────────────────────────────────────────────
 function ShareModal({ conv, onClose }) {
   const [copied, setCopied] = useState(false);
-  // Generate a deterministic shareable link from the conversation id
   const shareUrl = `${window.location.origin}/share/${conv.id}`;
 
-  const handleCopy = useCallback(() => {
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  const handleCopy = () => {
     navigator.clipboard.writeText(shareUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
-  }, [shareUrl]);
+  };
 
-  // Close on backdrop click or Escape
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  // Truncate conv text for preview
+  const previewText = conv.text.length > 80
+    ? conv.text.slice(0, 80) + '…'
+    : conv.text;
 
   return (
-    <div className="share-backdrop" onMouseDown={onClose}>
-      <div className="share-modal" onMouseDown={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Share conversation">
-        <div className="share-modal-header">
-          <span className="share-modal-title">Share Conversation</span>
-          <button className="share-modal-close" onClick={onClose} aria-label="Close">✕</button>
+    <div className="sm-backdrop" onClick={onClose}>
+      <div
+        className="sm-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Share conversation"
+      >
+        {/* Header */}
+        <div className="sm-header">
+          <span className="sm-title">Share Conversation</span>
+          <button className="sm-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
 
-        <div className="share-modal-body">
-          <div className="share-conv-preview">
-            <span className="share-conv-icon">📝</span>
-            <span className="share-conv-text">{conv.text}</span>
+        {/* Body */}
+        <div className="sm-body">
+          {/* Preview */}
+          <div className="sm-preview">
+            <span className="sm-preview-icon">📝</span>
+            <span className="sm-preview-text">{previewText}</span>
           </div>
 
-          <p className="share-modal-desc">
+          <p className="sm-desc">
             Anyone with this link can view this conversation.
           </p>
 
-          <div className="share-link-row">
+          {/* Link + Copy */}
+          <div className="sm-link-row">
             <input
-              className="share-link-input"
+              className="sm-link-input"
               type="text"
               value={shareUrl}
               readOnly
               onFocus={(e) => e.target.select()}
               aria-label="Share link"
             />
-            <button className="share-copy-btn" onClick={handleCopy}>
-              {copied ? '✓ Copied!' : '⎘ Copy'}
+            <button className="sm-copy-btn" onClick={handleCopy}>
+              {copied ? '✓ Copied!' : '⎘ Copy link'}
             </button>
           </div>
         </div>
@@ -63,9 +80,163 @@ function ShareModal({ conv, onClose }) {
   );
 }
 
-// ── Rename Inline Input ────────────────────────────────────────────────────────
-function RenameInput({ value, onConfirm, onCancel }) {
-  const [text, setText] = useState(value);
+// ─────────────────────────────────────────────────────────────────────────────
+// ContextMenu – floating action menu for a conversation item
+// ─────────────────────────────────────────────────────────────────────────────
+function ContextMenu({ conv, anchorEl, onClose, onPin, onShare, onStartRename, onArchive, onDelete }) {
+  const menuRef = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  // Calculate position relative to anchorEl on mount
+  useEffect(() => {
+    if (!anchorEl) return;
+    const rect = anchorEl.getBoundingClientRect();
+    const menuH = 200; // approximate menu height
+    const menuW = 180;
+
+    let top = rect.bottom + 4;
+    let left = rect.left;
+
+    // Flip up if not enough space below
+    if (top + menuH > window.innerHeight) {
+      top = rect.top - menuH - 4;
+    }
+    // Clamp horizontally
+    if (left + menuW > window.innerWidth) {
+      left = window.innerWidth - menuW - 8;
+    }
+    if (left < 4) left = 4;
+
+    setPos({ top, left });
+  }, [anchorEl]);
+
+  // Close on outside click or Escape
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target) &&
+          anchorEl && !anchorEl.contains(e.target)) {
+        onClose();
+      }
+    };
+    const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
+    // Slight delay so the triggering click doesn't immediately close
+    const t = setTimeout(() => {
+      document.addEventListener('mousedown', handleClick);
+      document.addEventListener('keydown', handleKey);
+    }, 50);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [anchorEl, onClose]);
+
+  return (
+    <div
+      className="ctxmenu"
+      ref={menuRef}
+      style={{ top: pos.top, left: pos.left }}
+      role="menu"
+    >
+      <button className="ctxmenu-item" role="menuitem"
+        onClick={() => { onPin(conv); onClose(); }}>
+        <span className="ctxmenu-icon">📌</span>
+        <span>{conv.pinned ? 'Unpin' : 'Pin'}</span>
+      </button>
+
+      <button className="ctxmenu-item" role="menuitem"
+        onClick={() => { onShare(conv); onClose(); }}>
+        <span className="ctxmenu-icon">🔗</span>
+        <span>Share</span>
+      </button>
+
+      <button className="ctxmenu-item" role="menuitem"
+        onClick={() => { onStartRename(conv); onClose(); }}>
+        <span className="ctxmenu-icon">✏️</span>
+        <span>Rename</span>
+      </button>
+
+      <div className="ctxmenu-divider" />
+
+      <button className="ctxmenu-item" role="menuitem"
+        onClick={() => { onArchive(conv); onClose(); }}>
+        <span className="ctxmenu-icon">🗃️</span>
+        <span>{conv.archived ? 'Unarchive' : 'Archive'}</span>
+      </button>
+
+      <button className="ctxmenu-item ctxmenu-item--danger" role="menuitem"
+        onClick={() => { onDelete(conv); onClose(); }}>
+        <span className="ctxmenu-icon">🗑️</span>
+        <span>Delete</span>
+      </button>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RecentItem – single conversation row
+// ─────────────────────────────────────────────────────────────────────────────
+function RecentItem({ conv, onClick, onPin, onShare, onStartRename, onArchive, onDelete }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const btnRef = useRef(null);
+
+  const handleMenuToggle = (e) => {
+    e.stopPropagation();
+    setMenuOpen((o) => !o);
+  };
+
+  const truncated = conv.text.length > 42
+    ? conv.text.slice(0, 42) + '…'
+    : conv.text;
+
+  return (
+    <div className={`ri ${conv.pinned ? 'ri--pinned' : ''}`}>
+      {/* Main click area */}
+      <button
+        className="ri-btn"
+        onClick={() => onClick(conv)}
+        title={conv.text}
+      >
+        {conv.pinned && <span className="ri-pin" title="Pinned">📌</span>}
+        <span className="ri-icon">💬</span>
+        <span className="ri-text">{truncated}</span>
+      </button>
+
+      {/* ··· trigger */}
+      <button
+        ref={btnRef}
+        className="ri-more"
+        onClick={handleMenuToggle}
+        title="More options"
+        aria-label="More options"
+        aria-haspopup="true"
+        aria-expanded={menuOpen}
+      >
+        •••
+      </button>
+
+      {/* Context menu – rendered conditionally, uses fixed positioning */}
+      {menuOpen && (
+        <ContextMenu
+          conv={conv}
+          anchorEl={btnRef.current}
+          onClose={() => setMenuOpen(false)}
+          onPin={onPin}
+          onShare={onShare}
+          onStartRename={onStartRename}
+          onArchive={onArchive}
+          onDelete={onDelete}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RenameModal – inline modal for renaming (avoids inline input layout issues)
+// ─────────────────────────────────────────────────────────────────────────────
+function RenameModal({ conv, onConfirm, onCancel }) {
+  const [text, setText] = useState(conv.text);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -73,159 +244,54 @@ function RenameInput({ value, onConfirm, onCancel }) {
     inputRef.current?.select();
   }, []);
 
-  const confirm = () => {
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onCancel(); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onCancel]);
+
+  const handleConfirm = () => {
     const trimmed = text.trim();
-    if (trimmed && trimmed !== value) onConfirm(trimmed);
+    if (trimmed && trimmed !== conv.text) onConfirm(trimmed);
     else onCancel();
   };
 
-  const onKey = (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); confirm(); }
-    if (e.key === 'Escape') onCancel();
-  };
-
   return (
-    <div className="rename-row">
-      <input
-        ref={inputRef}
-        className="rename-input"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={onKey}
-        onBlur={confirm}
-        maxLength={120}
-        aria-label="Rename conversation"
-      />
+    <div className="sm-backdrop" onClick={onCancel}>
+      <div className="sm-modal sm-modal--narrow" onClick={(e) => e.stopPropagation()}
+        role="dialog" aria-modal="true" aria-label="Rename conversation">
+        <div className="sm-header">
+          <span className="sm-title">Rename Conversation</span>
+          <button className="sm-close" onClick={onCancel} aria-label="Close">✕</button>
+        </div>
+        <div className="sm-body">
+          <label className="rename-label">New name</label>
+          <input
+            ref={inputRef}
+            className="rename-modal-input"
+            type="text"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { e.preventDefault(); handleConfirm(); }
+              if (e.key === 'Escape') onCancel();
+            }}
+            maxLength={120}
+            placeholder="Enter a name…"
+          />
+          <div className="rename-actions">
+            <button className="rename-cancel" onClick={onCancel}>Cancel</button>
+            <button className="rename-confirm" onClick={handleConfirm}>Save</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-// ── Context Menu ──────────────────────────────────────────────────────────────
-function ContextMenu({ conv, position, onClose, onPin, onShare, onRename, onArchive, onDelete }) {
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) onClose();
-    };
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    document.addEventListener('mousedown', handler);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', handler);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
-
-  // Compute safe position so the menu doesn't overflow the viewport
-  const style = {
-    top:   position.y,
-    left:  position.x,
-  };
-
-  return (
-    <div className="ctx-menu" style={style} ref={menuRef} role="menu" aria-label="Conversation options">
-      <button className="ctx-item" role="menuitem" onClick={() => { onPin(conv); onClose(); }}>
-        <span className="ctx-icon">{conv.pinned ? '📌' : '📌'}</span>
-        <span>{conv.pinned ? 'Unpin' : 'Pin'}</span>
-      </button>
-      <button className="ctx-item" role="menuitem" onClick={() => { onShare(conv); onClose(); }}>
-        <span className="ctx-icon">🔗</span>
-        <span>Share</span>
-      </button>
-      <button className="ctx-item" role="menuitem" onClick={() => { onRename(conv); onClose(); }}>
-        <span className="ctx-icon">✏️</span>
-        <span>Rename</span>
-      </button>
-      <div className="ctx-divider" />
-      <button className="ctx-item" role="menuitem" onClick={() => { onArchive(conv); onClose(); }}>
-        <span className="ctx-icon">🗃️</span>
-        <span>{conv.archived ? 'Unarchive' : 'Archive'}</span>
-      </button>
-      <button className="ctx-item ctx-item-danger" role="menuitem" onClick={() => { onDelete(conv); onClose(); }}>
-        <span className="ctx-icon">🗑️</span>
-        <span>Delete</span>
-      </button>
-    </div>
-  );
-}
-
-// ── Recent Item ───────────────────────────────────────────────────────────────
-function RecentItem({ conv, onClick, onPin, onShare, onRename, onArchive, onDelete }) {
-  const [menuOpen, setMenuOpen]   = useState(false);
-  const [menuPos, setMenuPos]     = useState({ x: 0, y: 0 });
-  const [renaming, setRenaming]   = useState(false);
-  const itemRef                   = useRef(null);
-
-  const openMenu = (e) => {
-    e.stopPropagation();
-    const rect = itemRef.current?.getBoundingClientRect() ?? { right: 0, top: 0 };
-    // Position menu to the right of the item; clamp to viewport
-    const x = Math.min(rect.right + 4, window.innerWidth - 190);
-    const y = Math.min(rect.top,       window.innerHeight - 260);
-    setMenuPos({ x, y });
-    setMenuOpen(true);
-  };
-
-  const handleRename = (newText) => {
-    setRenaming(false);
-    onRename(conv, newText);
-  };
-
-  if (renaming) {
-    return (
-      <div className="recent-item recent-item-renaming" ref={itemRef}>
-        <RenameInput
-          value={conv.text}
-          onConfirm={handleRename}
-          onCancel={() => setRenaming(false)}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <div className={`recent-item ${conv.pinned ? 'recent-item-pinned' : ''}`} ref={itemRef}>
-        <button
-          className="recent-item-btn"
-          onClick={() => onClick(conv)}
-          title={conv.text}
-        >
-          {conv.pinned && <span className="recent-pin-indicator" title="Pinned">📌</span>}
-          <span className="recent-icon">📝</span>
-          <span className="recent-text">{conv.text}</span>
-        </button>
-
-        <button
-          className="recent-menu-btn"
-          onClick={openMenu}
-          title="More options"
-          aria-label="More options"
-          aria-haspopup="true"
-          aria-expanded={menuOpen}
-        >
-          ···
-        </button>
-      </div>
-
-      {menuOpen && (
-        <ContextMenu
-          conv={conv}
-          position={menuPos}
-          onClose={() => setMenuOpen(false)}
-          onPin={onPin}
-          onShare={onShare}
-          onRename={() => { setRenaming(true); }}
-          onArchive={onArchive}
-          onDelete={onDelete}
-        />
-      )}
-    </>
-  );
-}
-
-// ── Main Sidebar ──────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Sidebar
+// ─────────────────────────────────────────────────────────────────────────────
 export default function Sidebar({
   onQuickPrompt,
   isCollapsed,
@@ -235,52 +301,50 @@ export default function Sidebar({
   conversationHistory = [],
   onLoadConversation  = () => {},
   onClearHistory      = () => {},
-  onUpdateHistory     = () => {},   // NEW: (updatedList) => void
+  onUpdateHistory     = () => {},
 }) {
-  const [openCategory, setOpenCategory]     = useState('Common Errors');
-  const [shareTarget,  setShareTarget]      = useState(null);   // conv being shared
-  const [showArchived, setShowArchived]     = useState(false);
-
-  const truncateText = (text, length = 50) =>
-    text.length > length ? text.substring(0, length) + '…' : text;
+  const [openCategory, setOpenCategory] = useState('Common Errors');
+  const [shareTarget,  setShareTarget]  = useState(null);   // conv to share
+  const [renameTarget, setRenameTarget] = useState(null);   // conv to rename
+  const [showArchived, setShowArchived] = useState(false);
 
   const mobileClass    = isMobileOpen ? 'mobile-open' : '';
   const collapsedClass = isCollapsed  ? 'collapsed'   : '';
 
-  // ── Derived lists ─────────────────────────────────────────────────────────
+  // Derived lists
   const pinned   = conversationHistory.filter(c => c.pinned && !c.archived);
   const recents  = conversationHistory.filter(c => !c.pinned && !c.archived);
   const archived = conversationHistory.filter(c => c.archived);
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
+  // ── Mutation handlers ─────────────────────────────────────────────────────
   const handlePin = useCallback((conv) => {
-    const updated = conversationHistory.map(c =>
-      c.id === conv.id ? { ...c, pinned: !c.pinned } : c
+    onUpdateHistory(
+      conversationHistory.map(c =>
+        c.id === conv.id ? { ...c, pinned: !c.pinned } : c
+      )
     );
-    onUpdateHistory(updated);
   }, [conversationHistory, onUpdateHistory]);
 
-  const handleShare = useCallback((conv) => {
-    setShareTarget(conv);
-  }, []);
-
-  const handleRename = useCallback((conv, newText) => {
-    const updated = conversationHistory.map(c =>
-      c.id === conv.id ? { ...c, text: newText } : c
+  const handleRenameConfirm = useCallback((newText) => {
+    if (!renameTarget) return;
+    onUpdateHistory(
+      conversationHistory.map(c =>
+        c.id === renameTarget.id ? { ...c, text: newText } : c
+      )
     );
-    onUpdateHistory(updated);
-  }, [conversationHistory, onUpdateHistory]);
+    setRenameTarget(null);
+  }, [renameTarget, conversationHistory, onUpdateHistory]);
 
   const handleArchive = useCallback((conv) => {
-    const updated = conversationHistory.map(c =>
-      c.id === conv.id ? { ...c, archived: !c.archived, pinned: false } : c
+    onUpdateHistory(
+      conversationHistory.map(c =>
+        c.id === conv.id ? { ...c, archived: !c.archived, pinned: false } : c
+      )
     );
-    onUpdateHistory(updated);
   }, [conversationHistory, onUpdateHistory]);
 
   const handleDelete = useCallback((conv) => {
-    const updated = conversationHistory.filter(c => c.id !== conv.id);
-    onUpdateHistory(updated);
+    onUpdateHistory(conversationHistory.filter(c => c.id !== conv.id));
   }, [conversationHistory, onUpdateHistory]);
 
   const handleItemClick = useCallback((conv) => {
@@ -288,26 +352,27 @@ export default function Sidebar({
     onMobileClose();
   }, [onLoadConversation, onMobileClose]);
 
-  // ── Shared item props ─────────────────────────────────────────────────────
+  // Shared action props for every RecentItem
   const itemActions = {
-    onPin:     handlePin,
-    onShare:   handleShare,
-    onRename:  handleRename,
-    onArchive: handleArchive,
-    onDelete:  handleDelete,
-    onClick:   handleItemClick,
+    onClick:        handleItemClick,
+    onPin:          handlePin,
+    onShare:        setShareTarget,
+    onStartRename:  setRenameTarget,
+    onArchive:      handleArchive,
+    onDelete:       handleDelete,
   };
 
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <>
       <aside className={`sidebar ${collapsedClass} ${mobileClass}`}>
 
-        {/* ── Desktop collapse toggle ── */}
+        {/* Desktop collapse toggle */}
         <button className="sidebar-toggle" onClick={onToggle} title="Toggle sidebar">
-          <span>{isCollapsed ? '▶' : '◀'}</span>
+          {isCollapsed ? '▶' : '◀'}
         </button>
 
-        {/* ── Mobile top bar ── */}
+        {/* Mobile top bar */}
         <div className="sidebar-mobile-close">
           <span className="sidebar-mobile-close-label">Menu</span>
           <button
@@ -326,7 +391,7 @@ export default function Sidebar({
             {pinned.length > 0 && (
               <div className="recents-section">
                 <div className="recents-header">
-                  <span className="recents-title">📌 PINNED</span>
+                  <span className="recents-title">📌 Pinned</span>
                 </div>
                 <div className="recents-list">
                   {pinned.map(conv => (
@@ -340,7 +405,7 @@ export default function Sidebar({
             {recents.length > 0 && (
               <div className="recents-section">
                 <div className="recents-header">
-                  <span className="recents-title">RECENTS</span>
+                  <span className="recents-title">Recents</span>
                   <button
                     className="recents-clear"
                     onClick={onClearHistory}
@@ -358,16 +423,16 @@ export default function Sidebar({
               </div>
             )}
 
-            {/* ── ARCHIVED (collapsible) ── */}
+            {/* ── ARCHIVED ── */}
             {archived.length > 0 && (
               <div className="recents-section">
                 <div className="recents-header">
                   <button
-                    className="recents-title recents-title-btn"
+                    className="recents-title-toggle"
                     onClick={() => setShowArchived(v => !v)}
-                    aria-expanded={showArchived}
                   >
-                    🗃️ ARCHIVED ({archived.length}) {showArchived ? '▾' : '▸'}
+                    🗃️ Archived ({archived.length})
+                    <span className="recents-chevron">{showArchived ? '▾' : '▸'}</span>
                   </button>
                 </div>
                 {showArchived && (
@@ -380,7 +445,7 @@ export default function Sidebar({
               </div>
             )}
 
-            {/* ── Quick Prompts header ── */}
+            {/* ── QUICK PROMPTS ── */}
             <div className="sidebar-header">
               <span className="sidebar-title">QUICK PROMPTS</span>
               <span className="sidebar-count">
@@ -388,14 +453,13 @@ export default function Sidebar({
               </span>
             </div>
 
-            {/* ── Prompt groups ── */}
             <div className="sidebar-body">
               {QUICK_PROMPTS.map(group => (
                 <div key={group.category} className="prompt-group">
                   <button
                     className={`group-header ${openCategory === group.category ? 'open' : ''}`}
                     onClick={() =>
-                      setOpenCategory(openCategory === group.category ? null : group.category)
+                      setOpenCategory(o => o === group.category ? null : group.category)
                     }
                   >
                     <span className="group-icon">{group.icon}</span>
@@ -425,14 +489,14 @@ export default function Sidebar({
               ))}
             </div>
 
-            {/* ── Stack coverage footer ── */}
+            {/* ── STACK COVERAGE ── */}
             <div className="sidebar-footer">
               <div className="coverage-title">STACK COVERAGE</div>
               <div className="coverage-grid">
                 {[
-                  '.NET', 'Node.js', 'Python', 'PHP', 'Java', 'Go',
-                  'React', 'Next.js', 'Vue', 'Angular',
-                  'PostgreSQL', 'MongoDB', 'Redis', 'MySQL',
+                  '.NET','Node.js','Python','PHP','Java','Go',
+                  'React','Next.js','Vue','Angular',
+                  'PostgreSQL','MongoDB','Redis','MySQL',
                 ].map(t => (
                   <span key={t} className="coverage-tag">{t}</span>
                 ))}
@@ -443,11 +507,20 @@ export default function Sidebar({
         )}
       </aside>
 
-      {/* ── Share Modal (portal-like, rendered outside aside) ── */}
+      {/* ── Share modal — rendered OUTSIDE <aside> so it's never clipped ── */}
       {shareTarget && (
         <ShareModal
           conv={shareTarget}
           onClose={() => setShareTarget(null)}
+        />
+      )}
+
+      {/* ── Rename modal ── */}
+      {renameTarget && (
+        <RenameModal
+          conv={renameTarget}
+          onConfirm={handleRenameConfirm}
+          onCancel={() => setRenameTarget(null)}
         />
       )}
     </>
