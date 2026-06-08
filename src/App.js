@@ -65,9 +65,16 @@ export default function App() {
     if (!lastUserMsg) return;
 
     setConversationHistory(prev => {
+      // Avoid duplicates by text content
       if (prev.some(h => h.text === lastUserMsg)) return prev;
       const updated = [
-        { id: Date.now(), text: lastUserMsg, timestamp: new Date() },
+        {
+          id:        Date.now(),
+          text:      lastUserMsg,
+          timestamp: new Date(),
+          pinned:    false,
+          archived:  false,
+        },
         ...prev,
       ].slice(0, 20);
       saveRecents(user.id, updated);
@@ -75,6 +82,12 @@ export default function App() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
+
+  // ── Update history (pin / rename / archive / delete) and persist ─────────
+  const handleUpdateHistory = useCallback((updatedList) => {
+    setConversationHistory(updatedList);
+    if (user) saveRecents(user.id, updatedList);
+  }, [user]);
 
   const handleQuickPrompt = useCallback((text) => {
     setQuickInput(text);
@@ -126,6 +139,7 @@ export default function App() {
           conversationHistory={conversationHistory}
           onLoadConversation={handleLoadConversation}
           onClearHistory={handleClearHistory}
+          onUpdateHistory={handleUpdateHistory}
         />
 
         <div className="chat-panel">
