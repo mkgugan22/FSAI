@@ -87,9 +87,9 @@ export function parseAgentResponse(text) {
  */
 export function getLayerMeta(layer = '') {
   const l = layer.toLowerCase();
-  if (l.includes('frontend')) return { color: '#00d2ff', bg: 'rgba(0,210,255,0.1)', label: 'FRONTEND' };
-  if (l.includes('backend'))  return { color: '#7c3aed', bg: 'rgba(124,58,237,0.1)', label: 'BACKEND' };
-  if (l.includes('database')) return { color: '#f97316', bg: 'rgba(249,115,22,0.1)', label: 'DATABASE' };
-  if (l.includes('cross'))    return { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', label: 'CROSS-LAYER' };
-  return { color: '#10b981', bg: 'rgba(16,185,129,0.1)', label: layer.toUpperCase() };
+  if (l.includes('frontend')) return { color: 'var(--primary-1)', bg: 'var(--cyan-dim)', label: 'FRONTEND' };
+  if (l.includes('backend'))  return { color: 'var(--primary-2)', bg: 'var(--violet-dim)', label: 'BACKEND' };
+  if (l.includes('database')) return { color: 'var(--amber)', bg: 'var(--amber-dim)', label: 'DATABASE' };
+  if (l.includes('cross'))    return { color: 'var(--orange)', bg: 'var(--amber-dim)', label: 'CROSS-LAYER' };
+  return { color: 'var(--green)', bg: 'var(--green-dim)', label: layer.toUpperCase() };
 }

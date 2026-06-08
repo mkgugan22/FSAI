@@ -4,31 +4,40 @@
 
 :root,
 [data-theme="dark"] {
-  --bg: #0a0e1a;
-  --bg-secondary: #1a1f2e;
-  --surface: rgba(20, 26, 40, 0.85);
-  --surface2: rgba(30, 37, 56, 0.7);
-  --surface3: rgba(40, 50, 70, 0.5);
-  --border: rgba(100, 150, 255, 0.12);
-  --border2: rgba(100, 150, 255, 0.2);
+  --bg: #050617;
+  --bg-secondary: #0e1426;
+  --bg-gradient: radial-gradient(800px 400px at 10% 10%, rgba(0,210,255,0.06) 0%, transparent 18%), radial-gradient(600px 300px at 90% 80%, rgba(124,58,237,0.04) 0%, transparent 20%), linear-gradient(180deg,#050617 0%, #0a0e1a 100%);
+  --surface: rgba(18, 24, 38, 0.78);
+  --surface2: rgba(28, 36, 54, 0.66);
+  --surface3: rgba(36, 46, 68, 0.5);
+  --border: rgba(120, 160, 255, 0.12);
+  --border2: rgba(120, 160, 255, 0.22);
 
-  --text: #f0f4ff;
-  --text-dim: #b8c4d8;
-  --text-subtle: #7a8aaa;
-  --text-mute: #4b5573;
+  --text: #eef6ff;
+  --text-dim: #b9c8e6;
+  --text-subtle: #8c9bb5;
+  --text-mute: #59627a;
 
-  --cyan: #00d2ff;
-  --cyan-dim: rgba(0, 210, 255, 0.12);
-  --purple: #c4a7ff;
-  --violet: #7c3aed;
-  --violet-dim: rgba(124, 58, 237, 0.18);
-  --orange: #ff9d5c;
-  --red: #ff5f5f;
-  --red-dim: rgba(255, 95, 95, 0.14);
+  --primary-1: #00d2ff;
+  --primary-2: #7c3aed;
+  --primary-gradient: linear-gradient(90deg, var(--primary-1), var(--primary-2));
+  /* Map auxiliary accents to primary palette to enforce dual-color theme */
+  --accent-1: var(--primary-1);
+  --accent-2: var(--primary-2);
+  --accent-gradient: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+
+  --cyan: var(--primary-1);
+  --cyan-dim: rgba(0, 200, 255, 0.12);
+  --purple: var(--primary-2);
+  --violet: var(--primary-2);
+  --violet-dim: rgba(124, 58, 237, 0.12);
+  --orange: var(--primary-2);
+  --red: var(--primary-2);
+  --red-dim: rgba(255, 107, 116, 0.06);
   --green: #22d38a;
   --green-dim: rgba(34, 211, 138, 0.12);
-  --amber: #fbbf24;
-  --amber-dim: rgba(251, 191, 36, 0.12);
+  --amber: var(--primary-2);
+  --amber-dim: rgba(251, 191, 36, 0.06);
 
   --font-display: 'Fraunces', serif;
   --font-body: 'Space Grotesk', sans-serif;
@@ -42,31 +51,40 @@
 }
 
 [data-theme="light"] {
-  --bg: #f4f6fb;
-  --bg-secondary: #eaedf5;
-  --surface: rgba(255, 255, 255, 0.95);
-  --surface2: rgba(225, 230, 245, 0.8);
-  --surface3: rgba(200, 210, 235, 0.6);
-  --border: rgba(15, 23, 80, 0.12);
-  --border2: rgba(15, 23, 80, 0.2);
+  --bg: #f7fafc;
+  --bg-secondary: #eef4fb;
+  --bg-gradient: radial-gradient(500px 200px at 10% 20%, rgba(0,119,170,0.06) 0%, transparent 18%), radial-gradient(400px 180px at 90% 80%, rgba(109,40,217,0.04) 0%, transparent 20%), linear-gradient(180deg,#fbfdff 0%, #eef4fb 100%);
+  --surface: rgba(255, 255, 255, 0.98);
+  --surface2: rgba(245, 250, 255, 0.9);
+  --surface3: rgba(235, 242, 255, 0.76);
+  --border: rgba(10, 30, 70, 0.08);
+  --border2: rgba(10, 30, 70, 0.14);
 
-  --text: #0d1630;
-  --text-dim: #2d3a5e;
-  --text-subtle: #5a6888;
-  --text-mute: #a0aabf;
+  --text: #071233;
+  --text-dim: #22304f;
+  --text-subtle: #476084;
+  --text-mute: #8b98b2;
 
-  --cyan: #0077aa;
-  --cyan-dim: rgba(0, 119, 170, 0.1);
-  --purple: #5b21b6;
-  --violet: #6d28d9;
-  --violet-dim: rgba(109, 40, 217, 0.1);
-  --orange: #c2410c;
-  --red: #b91c1c;
-  --red-dim: rgba(185, 28, 28, 0.08);
+  --primary-1: #0077aa;
+  --primary-2: #6d28d9;
+  --primary-gradient: linear-gradient(90deg, var(--primary-1), var(--primary-2));
+  /* Map auxiliary accents to primary palette for strict dual-color look */
+  --accent-1: var(--primary-1);
+  --accent-2: var(--primary-2);
+  --accent-gradient: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+
+  --cyan: var(--primary-1);
+  --cyan-dim: rgba(0, 119, 170, 0.12);
+  --purple: var(--primary-2);
+  --violet: var(--primary-2);
+  --violet-dim: rgba(109, 40, 217, 0.12);
+  --orange: var(--primary-2);
+  --red: var(--primary-2);
+  --red-dim: rgba(185, 28, 28, 0.06);
   --green: #047857;
   --green-dim: rgba(4, 120, 87, 0.08);
-  --amber: #b45309;
-  --amber-dim: rgba(180, 83, 9, 0.08);
+  --amber: var(--primary-2);
+  --amber-dim: rgba(180, 83, 9, 0.06);
 
   --font-display: 'Fraunces', serif;
   --font-body: 'Space Grotesk', sans-serif;

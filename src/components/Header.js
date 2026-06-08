@@ -7,9 +7,9 @@ import { useAuth } from '../context/AuthContext';
 import './Header.css';
 
 const STACK_LABELS = [
-  { label: 'BACKEND',  color: '#a78bfa', bg: 'rgba(124,58,237,0.15)', border: 'rgba(124,58,237,0.35)' },
-  { label: 'FRONTEND', color: '#00d2ff', bg: 'rgba(0,210,255,0.1)',   border: 'rgba(0,210,255,0.3)' },
-  { label: 'DATABASE', color: '#fb923c', bg: 'rgba(249,115,22,0.1)',  border: 'rgba(249,115,22,0.3)' },
+  { label: 'BACKEND',  color: 'var(--primary-2)', bg: 'var(--violet-dim)', border: 'rgba(124,58,237,0.35)' },
+  { label: 'FRONTEND', color: 'var(--primary-1)', bg: 'var(--cyan-dim)',   border: 'rgba(0,210,255,0.3)' },
+  { label: 'DATABASE', color: 'var(--primary-2)', bg: 'var(--amber-dim)',  border: 'rgba(109,40,217,0.3)' },
 ];
 
 export default function Header({ messageCount, onClear, onMenuToggle }) {

@@ -89,9 +89,9 @@
 }
 
 .avatar-agent {
-  background: linear-gradient(135deg, #7c3aed, #00d2ff);
-  box-shadow: 0 0 14px rgba(0,210,255,0.3);
-  color: #fff;
+  background: var(--primary-gradient);
+  box-shadow: var(--glow-1);
+  color: var(--text);
 }
 
 .avatar-user {

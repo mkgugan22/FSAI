@@ -279,9 +279,9 @@ function FixSection({ fix }) {
       <SectionCard
         icon="✔"
         label="FIX"
-        color="var(--green)"
-        bg="var(--green-dim)"
-        border="rgba(16,185,129,0.25)"
+        color="var(--primary-1)"
+        bg="var(--cyan-dim)"
+        border="var(--primary-1)"
       >
         {renderMarkdownContent(fix)}
       </SectionCard>
@@ -292,9 +292,9 @@ function FixSection({ fix }) {
     <SectionCard
       icon="✔"
       label="FIX OPTIONS"
-      color="var(--green)"
-      bg="var(--green-dim)"
-      border="rgba(16,185,129,0.25)"
+      color="var(--primary-1)"
+      bg="var(--cyan-dim)"
+      border="var(--primary-1)"
     >
       {options.map((opt, i) => (
         <div key={i} className="fix-option">
@@ -324,9 +324,9 @@ export default function AgentResponse({ parsed, raw }) {
           <SectionCard
             icon="⚠"
             label="ERROR TYPE"
-            color="var(--red)"
-            bg="var(--red-dim)"
-            border="rgba(239,68,68,0.25)"
+            color="var(--primary-2)"
+            bg="var(--violet-dim)"
+            border="var(--primary-2)"
           >
             <p className="body-text highlight-red">{renderInline(errorType)}</p>
           </SectionCard>
@@ -358,9 +358,9 @@ export default function AgentResponse({ parsed, raw }) {
         <SectionCard
           icon="🎯"
           label="ROOT CAUSE"
-          color="var(--amber)"
-          bg="var(--amber-dim)"
-          border="rgba(245,158,11,0.25)"
+          color="var(--primary-2)"
+          bg="var(--violet-dim)"
+          border="var(--primary-2)"
         >
           {renderMarkdownContent(rootCause)}
         </SectionCard>
@@ -374,9 +374,9 @@ export default function AgentResponse({ parsed, raw }) {
         <SectionCard
           icon="⌨"
           label="CODE PATCH"
-          color="var(--cyan)"
+          color="var(--primary-1)"
           bg="var(--cyan-dim)"
-          border="rgba(0,210,255,0.2)"
+          border="var(--primary-1)"
         >
           <CodeBlock code={codePatch} language={codeLanguage} />
         </SectionCard>

@@ -469,7 +469,7 @@
   flex-shrink: 0;
   padding: 9px 16px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #7c3aed, #00d2ff);
+  background: var(--primary-gradient);
   border: none;
   color: #fff;
   font-family: var(--font-ui);
@@ -479,12 +479,12 @@
   cursor: pointer;
   white-space: nowrap;
   transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
-  box-shadow: 0 4px 14px rgba(0, 210, 255, 0.25);
+  box-shadow: var(--glow-1);
 }
 .sm-copy-btn:hover {
   opacity: 0.92;
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0, 210, 255, 0.4);
+  box-shadow: var(--glow-2);
 }
 .sm-copy-btn:active { transform: translateY(0); }
 
@@ -540,7 +540,7 @@
 .rename-confirm {
   padding: 8px 18px;
   border-radius: 7px;
-  background: linear-gradient(135deg, #7c3aed, #00d2ff);
+  background: var(--primary-gradient);
   border: none;
   color: #fff;
   font-family: var(--font-ui);

@@ -20,7 +20,12 @@ export default function AnimatedBackground() {
     resize();
     window.addEventListener('resize', resize);
 
-    // Particles
+    // Particles (use CSS variables when available for theme consistency)
+    const style = getComputedStyle(document.documentElement);
+    const c1 = style.getPropertyValue('--primary-1')?.trim() || '#00d2ff';
+    const c2 = style.getPropertyValue('--primary-2')?.trim() || '#7c3aed';
+    const c3 = style.getPropertyValue('--amber')?.trim() || style.getPropertyValue('--primary-2')?.trim() || '#7c3aed';
+
     const particles = Array.from({ length: 60 }, () => ({
       x:  Math.random() * canvas.width,
       y:  Math.random() * canvas.height,
@@ -28,7 +33,7 @@ export default function AnimatedBackground() {
       vy: (Math.random() - 0.5) * 0.3,
       r:  Math.random() * 1.5 + 0.5,
       alpha: Math.random() * 0.4 + 0.1,
-      color: Math.random() > 0.6 ? '#00d2ff' : Math.random() > 0.5 ? '#7c3aed' : '#f97316',
+      color: Math.random() > 0.6 ? c1 : Math.random() > 0.5 ? c2 : c3,
     }));
 
     const draw = () => {

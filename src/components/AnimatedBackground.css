@@ -27,7 +27,7 @@
   top: -15%;
   left: 50%;
   transform: translateX(-50%);
-  background: radial-gradient(ellipse, rgba(124,58,237,0.1) 0%, transparent 70%);
+  background: radial-gradient(ellipse, rgba(124,58,237,0.06) 0%, transparent 70%);
 }
 
 .bg-radial-2 {
@@ -35,7 +35,7 @@
   height: 400px;
   bottom: 10%;
   left: -5%;
-  background: radial-gradient(ellipse, rgba(0,210,255,0.07) 0%, transparent 70%);
+  background: radial-gradient(ellipse, rgba(0,210,255,0.06) 0%, transparent 70%);
 }
 
 .bg-radial-3 {
@@ -43,7 +43,7 @@
   height: 350px;
   top: 30%;
   right: -5%;
-  background: radial-gradient(ellipse, rgba(249,115,22,0.06) 0%, transparent 70%);
+  background: radial-gradient(ellipse, rgba(109,40,217,0.06) 0%, transparent 70%);
 }
 
 .bg-scanline {
