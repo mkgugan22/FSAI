@@ -7,14 +7,12 @@ import { QUICK_PROMPTS } from '../utils/prompts';
 import './Sidebar.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ShareModal – rendered via React portal pattern (appended to body via state
-// in Sidebar so it escapes sidebar's overflow:hidden)
+// ShareModal
 // ─────────────────────────────────────────────────────────────────────────────
 function ShareModal({ conv, onClose }) {
   const [copied, setCopied] = useState(false);
   const shareUrl = `${window.location.origin}/share/${conv.id}`;
 
-  // Close on Escape
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handler);
@@ -28,7 +26,6 @@ function ShareModal({ conv, onClose }) {
     });
   };
 
-  // Truncate conv text for preview
   const previewText = conv.text.length > 80
     ? conv.text.slice(0, 80) + '…'
     : conv.text;
@@ -42,25 +39,18 @@ function ShareModal({ conv, onClose }) {
         aria-modal="true"
         aria-label="Share conversation"
       >
-        {/* Header */}
         <div className="sm-header">
           <span className="sm-title">Share Conversation</span>
           <button className="sm-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
-
-        {/* Body */}
         <div className="sm-body">
-          {/* Preview */}
           <div className="sm-preview">
             <span className="sm-preview-icon">📝</span>
             <span className="sm-preview-text">{previewText}</span>
           </div>
-
           <p className="sm-desc">
             Anyone with this link can view this conversation.
           </p>
-
-          {/* Link + Copy */}
           <div className="sm-link-row">
             <input
               className="sm-link-input"
@@ -81,27 +71,24 @@ function ShareModal({ conv, onClose }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ContextMenu – floating action menu for a conversation item
+// ContextMenu
 // ─────────────────────────────────────────────────────────────────────────────
 function ContextMenu({ conv, anchorEl, onClose, onPin, onShare, onStartRename, onArchive, onDelete }) {
   const menuRef = useRef(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
 
-  // Calculate position relative to anchorEl on mount
   useEffect(() => {
     if (!anchorEl) return;
     const rect = anchorEl.getBoundingClientRect();
-    const menuH = 200; // approximate menu height
+    const menuH = 200;
     const menuW = 180;
 
     let top = rect.bottom + 4;
     let left = rect.left;
 
-    // Flip up if not enough space below
     if (top + menuH > window.innerHeight) {
       top = rect.top - menuH - 4;
     }
-    // Clamp horizontally
     if (left + menuW > window.innerWidth) {
       left = window.innerWidth - menuW - 8;
     }
@@ -110,7 +97,6 @@ function ContextMenu({ conv, anchorEl, onClose, onPin, onShare, onStartRename, o
     setPos({ top, left });
   }, [anchorEl]);
 
-  // Close on outside click or Escape
   useEffect(() => {
     const handleClick = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target) &&
@@ -119,7 +105,6 @@ function ContextMenu({ conv, anchorEl, onClose, onPin, onShare, onStartRename, o
       }
     };
     const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
-    // Slight delay so the triggering click doesn't immediately close
     const t = setTimeout(() => {
       document.addEventListener('mousedown', handleClick);
       document.addEventListener('keydown', handleKey);
@@ -174,7 +159,7 @@ function ContextMenu({ conv, anchorEl, onClose, onPin, onShare, onStartRename, o
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RecentItem – single conversation row
+// RecentItem
 // ─────────────────────────────────────────────────────────────────────────────
 function RecentItem({ conv, onClick, onPin, onShare, onStartRename, onArchive, onDelete }) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -191,7 +176,6 @@ function RecentItem({ conv, onClick, onPin, onShare, onStartRename, onArchive, o
 
   return (
     <div className={`ri ${conv.pinned ? 'ri--pinned' : ''}`}>
-      {/* Main click area */}
       <button
         className="ri-btn"
         onClick={() => onClick(conv)}
@@ -202,7 +186,6 @@ function RecentItem({ conv, onClick, onPin, onShare, onStartRename, onArchive, o
         <span className="ri-text">{truncated}</span>
       </button>
 
-      {/* ··· trigger */}
       <button
         ref={btnRef}
         className="ri-more"
@@ -215,7 +198,6 @@ function RecentItem({ conv, onClick, onPin, onShare, onStartRename, onArchive, o
         •••
       </button>
 
-      {/* Context menu – rendered conditionally, uses fixed positioning */}
       {menuOpen && (
         <ContextMenu
           conv={conv}
@@ -233,7 +215,7 @@ function RecentItem({ conv, onClick, onPin, onShare, onStartRename, onArchive, o
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RenameModal – inline modal for renaming (avoids inline input layout issues)
+// RenameModal
 // ─────────────────────────────────────────────────────────────────────────────
 function RenameModal({ conv, onConfirm, onCancel }) {
   const [text, setText] = useState(conv.text);
@@ -304,14 +286,16 @@ export default function Sidebar({
   onUpdateHistory     = () => {},
 }) {
   const [openCategory, setOpenCategory] = useState('Common Errors');
-  const [shareTarget,  setShareTarget]  = useState(null);   // conv to share
-  const [renameTarget, setRenameTarget] = useState(null);   // conv to rename
+  const [shareTarget,  setShareTarget]  = useState(null);
+  const [renameTarget, setRenameTarget] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
+  // Collapse state for Pinned and Recents sections
+  const [pinnedCollapsed,  setPinnedCollapsed]  = useState(false);
+  const [recentsCollapsed, setRecentsCollapsed] = useState(false);
 
   const mobileClass    = isMobileOpen ? 'mobile-open' : '';
   const collapsedClass = isCollapsed  ? 'collapsed'   : '';
 
-  // Derived lists
   const pinned   = conversationHistory.filter(c => c.pinned && !c.archived);
   const recents  = conversationHistory.filter(c => !c.pinned && !c.archived);
   const archived = conversationHistory.filter(c => c.archived);
@@ -352,7 +336,6 @@ export default function Sidebar({
     onMobileClose();
   }, [onLoadConversation, onMobileClose]);
 
-  // Shared action props for every RecentItem
   const itemActions = {
     onClick:        handleItemClick,
     onPin:          handlePin,
@@ -362,17 +345,14 @@ export default function Sidebar({
     onDelete:       handleDelete,
   };
 
-  // ─────────────────────────────────────────────────────────────────────────
   return (
     <>
       <aside className={`sidebar ${collapsedClass} ${mobileClass}`}>
 
-        {/* Desktop collapse toggle */}
         <button className="sidebar-toggle" onClick={onToggle} title="Toggle sidebar">
           {isCollapsed ? '▶' : '◀'}
         </button>
 
-        {/* Mobile top bar */}
         <div className="sidebar-mobile-close">
           <span className="sidebar-mobile-close-label">Menu</span>
           <button
@@ -391,13 +371,22 @@ export default function Sidebar({
             {pinned.length > 0 && (
               <div className="recents-section">
                 <div className="recents-header">
-                  <span className="recents-title">📌 Pinned</span>
+                  <button
+                    className="recents-title-toggle"
+                    onClick={() => setPinnedCollapsed(v => !v)}
+                    aria-label={pinnedCollapsed ? 'Expand pinned' : 'Collapse pinned'}
+                  >
+                    <span>📌 Pinned</span>
+                    <span className="recents-chevron">{pinnedCollapsed ? '▸' : '▾'}</span>
+                  </button>
                 </div>
-                <div className="recents-list">
-                  {pinned.map(conv => (
-                    <RecentItem key={conv.id} conv={conv} {...itemActions} />
-                  ))}
-                </div>
+                {!pinnedCollapsed && (
+                  <div className="recents-list">
+                    {pinned.map(conv => (
+                      <RecentItem key={conv.id} conv={conv} {...itemActions} />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -405,21 +394,22 @@ export default function Sidebar({
             {recents.length > 0 && (
               <div className="recents-section">
                 <div className="recents-header">
-                  <span className="recents-title">Recents</span>
                   <button
-                    className="recents-clear"
-                    onClick={onClearHistory}
-                    title="Clear history"
-                    aria-label="Clear history"
+                    className="recents-title-toggle"
+                    onClick={() => setRecentsCollapsed(v => !v)}
+                    aria-label={recentsCollapsed ? 'Expand recents' : 'Collapse recents'}
                   >
-                    ✕
+                    <span>Recents</span>
+                    <span className="recents-chevron">{recentsCollapsed ? '▸' : '▾'}</span>
                   </button>
                 </div>
-                <div className="recents-list">
-                  {recents.map(conv => (
-                    <RecentItem key={conv.id} conv={conv} {...itemActions} />
-                  ))}
-                </div>
+                {!recentsCollapsed && (
+                  <div className="recents-list">
+                    {recents.map(conv => (
+                      <RecentItem key={conv.id} conv={conv} {...itemActions} />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -507,7 +497,6 @@ export default function Sidebar({
         )}
       </aside>
 
-      {/* ── Share modal — rendered OUTSIDE <aside> so it's never clipped ── */}
       {shareTarget && (
         <ShareModal
           conv={shareTarget}
@@ -515,7 +504,6 @@ export default function Sidebar({
         />
       )}
 
-      {/* ── Rename modal ── */}
       {renameTarget && (
         <RenameModal
           conv={renameTarget}
