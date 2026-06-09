@@ -7,24 +7,10 @@
 
 const { getStore } = require('@netlify/blobs');
 
-// ── CORS headers — allow any origin so share links work cross-browser ──
-const CORS_HEADERS = {
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
-
 exports.handler = async (event) => {
-  // Handle CORS preflight
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
-  }
-
   if (event.httpMethod !== 'GET') {
     return {
       statusCode: 405,
-      headers: CORS_HEADERS,
       body: JSON.stringify({ error: 'Method Not Allowed' }),
     };
   }
@@ -35,16 +21,16 @@ exports.handler = async (event) => {
     if (!shareId) {
       return {
         statusCode: 400,
-        headers: CORS_HEADERS,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ error: 'id query param required' }),
       };
     }
 
-    // Validate shareId — allow only safe alphanumeric/dash/underscore chars
+    // Validate shareId is safe
     if (!/^[\w-]{1,64}$/.test(shareId)) {
       return {
         statusCode: 400,
-        headers: CORS_HEADERS,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ error: 'Invalid shareId' }),
       };
     }
@@ -55,7 +41,7 @@ exports.handler = async (event) => {
     if (!raw) {
       return {
         statusCode: 404,
-        headers: CORS_HEADERS,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ error: 'Conversation not found' }),
       };
     }
@@ -65,8 +51,8 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers: {
-        ...CORS_HEADERS,
-        // Cache for 1 hour — shared conversations are immutable
+        'Content-Type': 'application/json',
+        // Cache for 1 hour — shared conversations don't change
         'Cache-Control': 'public, max-age=3600',
       },
       body: JSON.stringify({ payload }),
@@ -75,8 +61,8 @@ exports.handler = async (event) => {
     console.error('[share-load] Error:', err.message);
     return {
       statusCode: 500,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({ error: 'Internal server error' }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ error: err.message }),
     };
   }
 };
