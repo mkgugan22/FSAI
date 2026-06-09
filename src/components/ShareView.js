@@ -2,15 +2,12 @@
 // FSAI – ShareView
 // Renders a shared conversation.
 //
-// Production (Netlify): conversations are saved server-side via
-//   POST /api/share-save  →  Netlify Blobs
-//   GET  /api/share-load  →  Netlify Blobs
-// URLs stay short:  /share/<shareId>   (no data in URL)
+// Storage strategy:
+//   Production (Netlify) → Netlify Blobs via /api/share-save & /api/share-load
+//   Local dev            → localStorage (same-browser only, dev convenience)
 //
-// Local dev (no Netlify Blobs): falls back to localStorage so
-//   sharing still works within the same browser session.
-//
-// Accessible at /share/:shareId
+// Share URLs are always short: /share/<shareId>
+// The full conversation lives in Netlify Blobs server-side.
 // ═══════════════════════════════════════
 import React, { useEffect, useState } from 'react';
 import AgentResponse from './AgentResponse';
@@ -18,14 +15,15 @@ import './ShareView.css';
 
 // ── Environment detection ─────────────────────────────────────
 const IS_LOCAL =
-  window.location.hostname === 'localhost' ||
-  window.location.hostname === '127.0.0.1';
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' ||
+   window.location.hostname === '127.0.0.1');
 
-// ── API helpers ───────────────────────────────────────────────
+// ── Remote API helpers ────────────────────────────────────────
 
 /**
- * Save a conversation server-side via Netlify Function.
- * Returns true on success, false on failure.
+ * Save conversation to Netlify Blobs via serverless function.
+ * Returns { ok: true } on success, { ok: false, error } on failure.
  */
 export async function saveShareRemote(shareId, payload) {
   try {
@@ -34,28 +32,39 @@ export async function saveShareRemote(shareId, payload) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ shareId, payload }),
     });
-    return res.ok;
-  } catch {
-    return false;
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error('[ShareView] save-remote failed:', res.status, data);
+      return { ok: false, error: data.error || `HTTP ${res.status}` };
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error('[ShareView] save-remote error:', err.message);
+    return { ok: false, error: err.message };
   }
 }
 
 /**
- * Load a conversation from the server.
+ * Load conversation from Netlify Blobs.
  * Returns the payload object, or null if not found / error.
  */
 export async function loadShareRemote(shareId) {
   try {
     const res = await fetch(`/api/share-load?id=${encodeURIComponent(shareId)}`);
-    if (!res.ok) return null;
+    if (res.status === 404) return null;
+    if (!res.ok) {
+      console.error('[ShareView] load-remote failed:', res.status);
+      return null;
+    }
     const data = await res.json();
     return data.payload ?? null;
-  } catch {
+  } catch (err) {
+    console.error('[ShareView] load-remote error:', err.message);
     return null;
   }
 }
 
-// ── localStorage helpers (local dev fallback) ─────────────────
+// ── localStorage helpers (local dev only) ─────────────────────
 
 export function saveSharedConversation(shareId, payload) {
   try {
@@ -73,20 +82,29 @@ export function loadSharedConversation(shareId) {
 }
 
 /**
- * Unified save: uses API in production, localStorage in local dev.
- * Returns { ok: boolean, fallback: boolean }
+ * Unified save used by Sidebar's ShareModal.
+ *
+ * - Production: saves to Netlify Blobs (cross-browser accessible)
+ * - Local dev:  saves to localStorage (same-browser convenience)
+ *
+ * Returns { ok: boolean, isLocal: boolean, error?: string }
  */
 export async function saveShare(shareId, payload) {
   if (IS_LOCAL) {
+    // Local dev — use localStorage so sharing works within the same browser
     saveSharedConversation(shareId, payload);
-    return { ok: true, fallback: true };
+    return { ok: true, isLocal: true };
   }
-  const ok = await saveShareRemote(shareId, payload);
-  if (!ok) {
+
+  // Production — save to Netlify Blobs
+  const result = await saveShareRemote(shareId, payload);
+  if (!result.ok) {
+    console.warn('[ShareView] Remote save failed, falling back to localStorage:', result.error);
+    // Fallback so the modal doesn't silently error; only helps same-browser
     saveSharedConversation(shareId, payload);
-    return { ok: false, fallback: true };
+    return { ok: false, isLocal: true, error: result.error };
   }
-  return { ok: true, fallback: false };
+  return { ok: true, isLocal: false };
 }
 
 // ── Time formatters ───────────────────────────────────────────
@@ -147,7 +165,7 @@ function SharedMessage({ message }) {
 // ── Main Component ────────────────────────────────────────────
 export default function ShareView({ shareId }) {
   const [data,   setData]   = useState(null);
-  const [status, setStatus] = useState('loading');
+  const [status, setStatus] = useState('loading'); // loading | found | not-found
 
   useEffect(() => {
     if (!shareId) {
@@ -158,7 +176,7 @@ export default function ShareView({ shareId }) {
     let cancelled = false;
 
     async function load() {
-      // 1. Try server API first (works on Netlify, fails gracefully on localhost)
+      // 1. Try Netlify Blobs first (works cross-browser in production)
       if (!IS_LOCAL) {
         const remote = await loadShareRemote(shareId);
         if (cancelled) return;
@@ -169,7 +187,7 @@ export default function ShareView({ shareId }) {
         }
       }
 
-      // 2. Try localStorage (local dev, or same-browser legacy links)
+      // 2. Try localStorage (local dev, or same-browser fallback)
       const local = loadSharedConversation(shareId);
       if (cancelled) return;
       if (local) {
@@ -178,7 +196,7 @@ export default function ShareView({ shareId }) {
         return;
       }
 
-      setStatus('not-found');
+      if (!cancelled) setStatus('not-found');
     }
 
     load();
@@ -231,7 +249,7 @@ export default function ShareView({ shareId }) {
         <a href="/" className="sv-open-btn">Open FSAI →</a>
       </div>
 
-      {/* Conversation meta */}
+      {/* Meta */}
       <div className="sv-meta-bar">
         <div className="sv-meta-inner">
           <span className="sv-meta-label">📝 {title}</span>
