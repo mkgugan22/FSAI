@@ -1,6 +1,8 @@
 // ═══════════════════════════════════════
 // FSAI – Sidebar
-// Features: Pin, Share (server-side via Netlify Blobs), Rename, Archive, Delete
+// Share: saves to Netlify Blobs (cross-browser) in production,
+//        localStorage in local dev.
+// All other features unchanged.
 // ═══════════════════════════════════════
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { QUICK_PROMPTS } from '../utils/prompts';
@@ -9,13 +11,11 @@ import './Sidebar.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ShareModal
-// Saves the conversation server-side and shows a short shareable URL.
-// Falls back to localStorage on localhost.
 // ─────────────────────────────────────────────────────────────────────────────
 function ShareModal({ conv, liveMessages, onClose }) {
-  const [copied,   setCopied]   = useState(false);
-  const [shareUrl, setShareUrl] = useState('');
-  const [saving,   setSaving]   = useState(true);
+  const [copied,    setCopied]    = useState(false);
+  const [shareUrl,  setShareUrl]  = useState('');
+  const [saving,    setSaving]    = useState(true);
   const [saveError, setSaveError] = useState('');
 
   const shareId = String(conv.id);
@@ -37,12 +37,17 @@ function ShareModal({ conv, liveMessages, onClose }) {
 
       if (cancelled) return;
 
-      if (result.ok || result.fallback) {
-        // Build the short share URL (no data in it)
-        const url = `${window.location.origin}/share/${shareId}`;
-        setShareUrl(url);
+      if (result.ok) {
+        setShareUrl(`${window.location.origin}/share/${shareId}`);
       } else {
-        setSaveError('Failed to save the share link. Please try again.');
+        // Remote save failed; we still set a URL because localStorage fallback
+        // was attempted, but warn the user it's same-browser only
+        setSaveError(
+          result.error
+            ? `Could not save to server (${result.error}). The link below works only in this browser.`
+            : 'Server save failed. The link below works only in this browser.'
+        );
+        setShareUrl(`${window.location.origin}/share/${shareId}`);
       }
 
       setSaving(false);
@@ -84,11 +89,13 @@ function ShareModal({ conv, liveMessages, onClose }) {
         </div>
 
         <div className="sm-body">
+          {/* Conversation preview */}
           <div className="sm-preview">
             <span className="sm-preview-icon">📝</span>
             <span className="sm-preview-text">{previewText}</span>
           </div>
 
+          {/* Saving state */}
           {saving && (
             <div className="sm-local-notice">
               <span className="sm-local-icon">⏳</span>
@@ -96,36 +103,45 @@ function ShareModal({ conv, liveMessages, onClose }) {
             </div>
           )}
 
+          {/* Error state — still show link (localStorage fallback) */}
           {!saving && saveError && (
-            <div className="sm-local-notice" style={{ borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)' }}>
+            <div
+              className="sm-local-notice"
+              style={{
+                borderColor: 'rgba(239,68,68,0.3)',
+                background:  'rgba(239,68,68,0.06)',
+              }}
+            >
               <span className="sm-local-icon">⚠</span>
               <span className="sm-local-text">{saveError}</span>
             </div>
           )}
 
+          {/* Success state */}
           {!saving && !saveError && shareUrl && (
-            <>
-              <div className="sm-local-notice">
-                <span className="sm-local-icon">🌐</span>
-                <span className="sm-local-text">
-                  This link works on <strong>any browser or device</strong>.
-                </span>
-              </div>
+            <div className="sm-local-notice">
+              <span className="sm-local-icon">🌐</span>
+              <span className="sm-local-text">
+                This link works on <strong>any browser or device</strong>.
+              </span>
+            </div>
+          )}
 
-              <div className="sm-link-row">
-                <input
-                  className="sm-link-input"
-                  type="text"
-                  value={shareUrl}
-                  readOnly
-                  onFocus={(e) => e.target.select()}
-                  aria-label="Share link"
-                />
-                <button className="sm-copy-btn" onClick={handleCopy}>
-                  {copied ? '✓ Copied!' : '⎘ Copy link'}
-                </button>
-              </div>
-            </>
+          {/* Link row — shown after saving finishes */}
+          {!saving && shareUrl && (
+            <div className="sm-link-row">
+              <input
+                className="sm-link-input"
+                type="text"
+                value={shareUrl}
+                readOnly
+                onFocus={(e) => e.target.select()}
+                aria-label="Share link"
+              />
+              <button className="sm-copy-btn" onClick={handleCopy}>
+                {copied ? '✓ Copied!' : '⎘ Copy link'}
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -145,14 +161,11 @@ function ContextMenu({ conv, anchorEl, onClose, onPin, onShare, onStartRename, o
     const rect  = anchorEl.getBoundingClientRect();
     const menuH = 200;
     const menuW = 180;
-
     let top  = rect.bottom + 4;
     let left = rect.left;
-
     if (top  + menuH > window.innerHeight) top  = rect.top - menuH - 4;
     if (left + menuW > window.innerWidth)  left = window.innerWidth - menuW - 8;
     if (left < 4) left = 4;
-
     setPos({ top, left });
   }, [anchorEl]);
 
@@ -161,9 +174,7 @@ function ContextMenu({ conv, anchorEl, onClose, onPin, onShare, onStartRename, o
       if (
         menuRef.current && !menuRef.current.contains(e.target) &&
         anchorEl && !anchorEl.contains(e.target)
-      ) {
-        onClose();
-      }
+      ) onClose();
     };
     const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
     const t = setTimeout(() => {
@@ -178,40 +189,25 @@ function ContextMenu({ conv, anchorEl, onClose, onPin, onShare, onStartRename, o
   }, [anchorEl, onClose]);
 
   return (
-    <div
-      className="ctxmenu"
-      ref={menuRef}
-      style={{ top: pos.top, left: pos.left }}
-      role="menu"
-    >
-      <button className="ctxmenu-item" role="menuitem"
-        onClick={() => { onPin(conv); onClose(); }}>
+    <div className="ctxmenu" ref={menuRef} style={{ top: pos.top, left: pos.left }} role="menu">
+      <button className="ctxmenu-item" role="menuitem" onClick={() => { onPin(conv); onClose(); }}>
         <span className="ctxmenu-icon">📌</span>
         <span>{conv.pinned ? 'Unpin' : 'Pin'}</span>
       </button>
-
-      <button className="ctxmenu-item" role="menuitem"
-        onClick={() => { onShare(conv); onClose(); }}>
+      <button className="ctxmenu-item" role="menuitem" onClick={() => { onShare(conv); onClose(); }}>
         <span className="ctxmenu-icon">🔗</span>
         <span>Share</span>
       </button>
-
-      <button className="ctxmenu-item" role="menuitem"
-        onClick={() => { onStartRename(conv); onClose(); }}>
+      <button className="ctxmenu-item" role="menuitem" onClick={() => { onStartRename(conv); onClose(); }}>
         <span className="ctxmenu-icon">✏️</span>
         <span>Rename</span>
       </button>
-
       <div className="ctxmenu-divider" />
-
-      <button className="ctxmenu-item" role="menuitem"
-        onClick={() => { onArchive(conv); onClose(); }}>
+      <button className="ctxmenu-item" role="menuitem" onClick={() => { onArchive(conv); onClose(); }}>
         <span className="ctxmenu-icon">🗃️</span>
         <span>{conv.archived ? 'Unarchive' : 'Archive'}</span>
       </button>
-
-      <button className="ctxmenu-item ctxmenu-item--danger" role="menuitem"
-        onClick={() => { onDelete(conv); onClose(); }}>
+      <button className="ctxmenu-item ctxmenu-item--danger" role="menuitem" onClick={() => { onDelete(conv); onClose(); }}>
         <span className="ctxmenu-icon">🗑️</span>
         <span>Delete</span>
       </button>
@@ -226,22 +222,13 @@ function RecentItem({ conv, onClick, onPin, onShare, onStartRename, onArchive, o
   const [menuOpen, setMenuOpen] = useState(false);
   const btnRef = useRef(null);
 
-  const handleMenuToggle = (e) => {
-    e.stopPropagation();
-    setMenuOpen((o) => !o);
-  };
-
   const truncated = conv.text.length > 42
     ? conv.text.slice(0, 42) + '…'
     : conv.text;
 
   return (
     <div className={`ri ${conv.pinned ? 'ri--pinned' : ''}`}>
-      <button
-        className="ri-btn"
-        onClick={() => onClick(conv)}
-        title={conv.text}
-      >
+      <button className="ri-btn" onClick={() => onClick(conv)} title={conv.text}>
         {conv.pinned && <span className="ri-pin" title="Pinned">📌</span>}
         <span className="ri-icon">💬</span>
         <span className="ri-text">{truncated}</span>
@@ -250,7 +237,7 @@ function RecentItem({ conv, onClick, onPin, onShare, onStartRename, onArchive, o
       <button
         ref={btnRef}
         className="ri-more"
-        onClick={handleMenuToggle}
+        onClick={(e) => { e.stopPropagation(); setMenuOpen(o => !o); }}
         title="More options"
         aria-label="More options"
         aria-haspopup="true"
@@ -366,31 +353,24 @@ export default function Sidebar({
   const recents  = conversationHistory.filter(c => !c.pinned  && !c.archived);
   const archived = conversationHistory.filter(c => c.archived);
 
-  // ── Mutation handlers ─────────────────────────────────────────────────────
   const handlePin = useCallback((conv) => {
-    onUpdateHistory(
-      conversationHistory.map(c =>
-        c.id === conv.id ? { ...c, pinned: !c.pinned } : c
-      )
-    );
+    onUpdateHistory(conversationHistory.map(c =>
+      c.id === conv.id ? { ...c, pinned: !c.pinned } : c
+    ));
   }, [conversationHistory, onUpdateHistory]);
 
   const handleRenameConfirm = useCallback((newText) => {
     if (!renameTarget) return;
-    onUpdateHistory(
-      conversationHistory.map(c =>
-        c.id === renameTarget.id ? { ...c, text: newText } : c
-      )
-    );
+    onUpdateHistory(conversationHistory.map(c =>
+      c.id === renameTarget.id ? { ...c, text: newText } : c
+    ));
     setRenameTarget(null);
   }, [renameTarget, conversationHistory, onUpdateHistory]);
 
   const handleArchive = useCallback((conv) => {
-    onUpdateHistory(
-      conversationHistory.map(c =>
-        c.id === conv.id ? { ...c, archived: !c.archived, pinned: false } : c
-      )
-    );
+    onUpdateHistory(conversationHistory.map(c =>
+      c.id === conv.id ? { ...c, archived: !c.archived, pinned: false } : c
+    ));
   }, [conversationHistory, onUpdateHistory]);
 
   const handleDelete = useCallback((conv) => {
@@ -414,18 +394,13 @@ export default function Sidebar({
   return (
     <>
       <aside className={`sidebar ${collapsedClass} ${mobileClass}`}>
-
         <button className="sidebar-toggle" onClick={onToggle} title="Toggle sidebar">
           {isCollapsed ? '▶' : '◀'}
         </button>
 
         <div className="sidebar-mobile-close">
           <span className="sidebar-mobile-close-label">Menu</span>
-          <button
-            className="sidebar-mobile-close-btn"
-            onClick={onMobileClose}
-            aria-label="Close sidebar"
-          >
+          <button className="sidebar-mobile-close-btn" onClick={onMobileClose} aria-label="Close sidebar">
             ✕
           </button>
         </div>
@@ -448,9 +423,7 @@ export default function Sidebar({
                 </div>
                 {!pinnedCollapsed && (
                   <div className="recents-list">
-                    {pinned.map(conv => (
-                      <RecentItem key={conv.id} conv={conv} {...itemActions} />
-                    ))}
+                    {pinned.map(conv => <RecentItem key={conv.id} conv={conv} {...itemActions} />)}
                   </div>
                 )}
               </div>
@@ -471,9 +444,7 @@ export default function Sidebar({
                 </div>
                 {!recentsCollapsed && (
                   <div className="recents-list">
-                    {recents.map(conv => (
-                      <RecentItem key={conv.id} conv={conv} {...itemActions} />
-                    ))}
+                    {recents.map(conv => <RecentItem key={conv.id} conv={conv} {...itemActions} />)}
                   </div>
                 )}
               </div>
@@ -483,19 +454,14 @@ export default function Sidebar({
             {archived.length > 0 && (
               <div className="recents-section">
                 <div className="recents-header">
-                  <button
-                    className="recents-title-toggle"
-                    onClick={() => setShowArchived(v => !v)}
-                  >
+                  <button className="recents-title-toggle" onClick={() => setShowArchived(v => !v)}>
                     🗃️ Archived ({archived.length})
                     <span className="recents-chevron">{showArchived ? '▾' : '▸'}</span>
                   </button>
                 </div>
                 {showArchived && (
                   <div className="recents-list">
-                    {archived.map(conv => (
-                      <RecentItem key={conv.id} conv={conv} {...itemActions} />
-                    ))}
+                    {archived.map(conv => <RecentItem key={conv.id} conv={conv} {...itemActions} />)}
                   </div>
                 )}
               </div>
@@ -514,15 +480,11 @@ export default function Sidebar({
                 <div key={group.category} className="prompt-group">
                   <button
                     className={`group-header ${openCategory === group.category ? 'open' : ''}`}
-                    onClick={() =>
-                      setOpenCategory(o => o === group.category ? null : group.category)
-                    }
+                    onClick={() => setOpenCategory(o => o === group.category ? null : group.category)}
                   >
                     <span className="group-icon">{group.icon}</span>
                     <span className="group-label">{group.category}</span>
-                    <span className="group-chevron">
-                      {openCategory === group.category ? '▾' : '▸'}
-                    </span>
+                    <span className="group-chevron">{openCategory === group.category ? '▾' : '▸'}</span>
                   </button>
 
                   {openCategory === group.category && (
@@ -553,9 +515,7 @@ export default function Sidebar({
                   '.NET','Node.js','Python','PHP','Java','Go',
                   'React','Next.js','Vue','Angular',
                   'PostgreSQL','MongoDB','Redis','MySQL',
-                ].map(t => (
-                  <span key={t} className="coverage-tag">{t}</span>
-                ))}
+                ].map(t => <span key={t} className="coverage-tag">{t}</span>)}
               </div>
             </div>
 
