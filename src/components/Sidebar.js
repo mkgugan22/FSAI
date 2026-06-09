@@ -1,31 +1,38 @@
 // ═══════════════════════════════════════
 // FSAI – Sidebar
-// Features: Pin, Share (modal + localStorage persistence), Rename, Archive, Delete
+// Features: Pin, Share (URL-encoded, cross-browser), Rename, Archive, Delete
 // ═══════════════════════════════════════
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { QUICK_PROMPTS } from '../utils/prompts';
-import { saveSharedConversation } from './ShareView';
+import { buildShareUrl } from './ShareView';
 import './Sidebar.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ShareModal
-// Receives the full live messages array so the snapshot is always up to date.
+// Encodes the full conversation into the URL hash — works on any browser/device.
 // ─────────────────────────────────────────────────────────────────────────────
 function ShareModal({ conv, liveMessages, onClose }) {
   const [copied, setCopied] = useState(false);
+  const [shareUrl, setShareUrl] = useState('');
+  const [tooLarge, setTooLarge] = useState(false);
 
-  const shareId  = String(conv.id);
-  const shareUrl = `${window.location.origin}/share/${shareId}`;
+  const shareId = String(conv.id);
 
-  // Save the live message snapshot to localStorage as soon as the modal opens.
-  // liveMessages comes directly from Redux state so it always contains
-  // every message in the current conversation.
   useEffect(() => {
-    saveSharedConversation(shareId, {
+    const payload = {
       title:    conv.text,
       sharedAt: new Date().toISOString(),
       messages: liveMessages,
-    });
+    };
+
+    const url = buildShareUrl(shareId, payload);
+    if (!url) {
+      setTooLarge(true);
+    } else {
+      setShareUrl(url);
+      // Check if the URL might be too long for some browsers (>64KB)
+      if (url.length > 60000) setTooLarge(true);
+    }
   }, [shareId, conv.text, liveMessages]);
 
   useEffect(() => {
@@ -64,28 +71,37 @@ function ShareModal({ conv, liveMessages, onClose }) {
             <span className="sm-preview-text">{previewText}</span>
           </div>
 
-          <div className="sm-local-notice">
-            <span className="sm-local-icon">ℹ</span>
-            <span className="sm-local-text">
-              This link works in <strong>this browser only</strong>. The conversation
-              is saved locally — it won't open on other devices or in
-              private/incognito windows.
-            </span>
-          </div>
+          {tooLarge ? (
+            <div className="sm-local-notice">
+              <span className="sm-local-icon">⚠</span>
+              <span className="sm-local-text">
+                This conversation is too large to share via link. Try sharing a shorter conversation.
+              </span>
+            </div>
+          ) : (
+            <>
+              <div className="sm-local-notice">
+                <span className="sm-local-icon">🌐</span>
+                <span className="sm-local-text">
+                  This link works on <strong>any browser or device</strong> — the conversation is embedded directly in the URL.
+                </span>
+              </div>
 
-          <div className="sm-link-row">
-            <input
-              className="sm-link-input"
-              type="text"
-              value={shareUrl}
-              readOnly
-              onFocus={(e) => e.target.select()}
-              aria-label="Share link"
-            />
-            <button className="sm-copy-btn" onClick={handleCopy}>
-              {copied ? '✓ Copied!' : '⎘ Copy link'}
-            </button>
-          </div>
+              <div className="sm-link-row">
+                <input
+                  className="sm-link-input"
+                  type="text"
+                  value={shareUrl}
+                  readOnly
+                  onFocus={(e) => e.target.select()}
+                  aria-label="Share link"
+                />
+                <button className="sm-copy-btn" onClick={handleCopy}>
+                  {copied ? '✓ Copied!' : '⎘ Copy link'}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -309,7 +325,7 @@ export default function Sidebar({
   onLoadConversation  = () => {},
   onClearHistory      = () => {},
   onUpdateHistory     = () => {},
-  liveMessages        = [],      // live Redux messages passed from App
+  liveMessages        = [],
 }) {
   const [openCategory,     setOpenCategory]     = useState('Common Errors');
   const [shareTarget,      setShareTarget]      = useState(null);
@@ -522,7 +538,6 @@ export default function Sidebar({
         )}
       </aside>
 
-      {/* Pass liveMessages to ShareModal so snapshot is always complete */}
       {shareTarget && (
         <ShareModal
           conv={shareTarget}
