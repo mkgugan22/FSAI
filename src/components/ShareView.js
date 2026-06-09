@@ -1,16 +1,16 @@
 // ═══════════════════════════════════════
 // FSAI – ShareView
-// Renders a shared conversation at /share/:shareId.
+// Renders a shared conversation.
 //
-// Storage strategy:
-//   Production (Netlify): saved/loaded via Netlify Blobs through
-//     POST /api/share-save
-//     GET  /api/share-load
-//   Local dev: falls back to localStorage so sharing works
-//     within the same browser session without a server.
+// Production (Netlify): conversations are saved server-side via
+//   POST /api/share-save  →  Netlify Blobs
+//   GET  /api/share-load  →  Netlify Blobs
+// URLs stay short:  /share/<shareId>   (no data in URL)
 //
-// The "Open FSAI →" button always navigates to "/" which triggers
-// the auth gate — no account is required to VIEW a shared link.
+// Local dev (no Netlify Blobs): falls back to localStorage so
+//   sharing still works within the same browser session.
+//
+// Accessible at /share/:shareId
 // ═══════════════════════════════════════
 import React, { useEffect, useState } from 'react';
 import AgentResponse from './AgentResponse';
@@ -25,7 +25,7 @@ const IS_LOCAL =
 
 /**
  * Save a conversation server-side via Netlify Function.
- * @returns {Promise<boolean>} true on success
+ * Returns true on success, false on failure.
  */
 export async function saveShareRemote(shareId, payload) {
   try {
@@ -42,7 +42,7 @@ export async function saveShareRemote(shareId, payload) {
 
 /**
  * Load a conversation from the server.
- * @returns {Promise<object|null>} payload object or null when not found
+ * Returns the payload object, or null if not found / error.
  */
 export async function loadShareRemote(shareId) {
   try {
@@ -55,7 +55,7 @@ export async function loadShareRemote(shareId) {
   }
 }
 
-// ── localStorage helpers (local dev only) ─────────────────────
+// ── localStorage helpers (local dev fallback) ─────────────────
 
 export function saveSharedConversation(shareId, payload) {
   try {
@@ -73,37 +73,26 @@ export function loadSharedConversation(shareId) {
 }
 
 /**
- * Unified save helper used by Sidebar's ShareModal.
- *
- * Production: always uses the server API (Netlify Blobs).
- *   If the API call fails, the error is surfaced to the caller
- *   so the UI can show a meaningful error — we do NOT silently
- *   fall back to localStorage because that would produce a link
- *   that only works in the sharer's own browser.
- *
- * Local dev: uses localStorage so the flow can be tested without
- *   a running Netlify dev server.
- *
- * @returns {{ ok: boolean, fallback: boolean }}
+ * Unified save: uses API in production, localStorage in local dev.
+ * Returns { ok: boolean, fallback: boolean }
  */
 export async function saveShare(shareId, payload) {
   if (IS_LOCAL) {
     saveSharedConversation(shareId, payload);
     return { ok: true, fallback: true };
   }
-
   const ok = await saveShareRemote(shareId, payload);
-  // On production we never silently fall back — return the real outcome.
-  return { ok, fallback: false };
+  if (!ok) {
+    saveSharedConversation(shareId, payload);
+    return { ok: false, fallback: true };
+  }
+  return { ok: true, fallback: false };
 }
 
 // ── Time formatters ───────────────────────────────────────────
 function formatTime(id) {
   try {
-    return new Date(id).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return new Date(id).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   } catch {
     return '';
   }
@@ -112,11 +101,8 @@ function formatTime(id) {
 function formatDate(iso) {
   try {
     return new Date(iso).toLocaleString([], {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit',
     });
   } catch {
     return '';
@@ -161,7 +147,7 @@ function SharedMessage({ message }) {
 // ── Main Component ────────────────────────────────────────────
 export default function ShareView({ shareId }) {
   const [data,   setData]   = useState(null);
-  const [status, setStatus] = useState('loading'); // 'loading' | 'found' | 'not-found'
+  const [status, setStatus] = useState('loading');
 
   useEffect(() => {
     if (!shareId) {
@@ -172,38 +158,34 @@ export default function ShareView({ shareId }) {
     let cancelled = false;
 
     async function load() {
-      if (IS_LOCAL) {
-        // Local dev: try localStorage only
-        const local = loadSharedConversation(shareId);
-        if (!cancelled) {
-          if (local) {
-            setData(local);
-            setStatus('found');
-          } else {
-            setStatus('not-found');
-          }
+      // 1. Try server API first (works on Netlify, fails gracefully on localhost)
+      if (!IS_LOCAL) {
+        const remote = await loadShareRemote(shareId);
+        if (cancelled) return;
+        if (remote) {
+          setData(remote);
+          setStatus('found');
+          return;
         }
+      }
+
+      // 2. Try localStorage (local dev, or same-browser legacy links)
+      const local = loadSharedConversation(shareId);
+      if (cancelled) return;
+      if (local) {
+        setData(local);
+        setStatus('found');
         return;
       }
 
-      // Production: always load from the server (Netlify Blobs).
-      // This is the only path that allows cross-browser, cross-device sharing.
-      const remote = await loadShareRemote(shareId);
-      if (cancelled) return;
-
-      if (remote) {
-        setData(remote);
-        setStatus('found');
-      } else {
-        setStatus('not-found');
-      }
+      setStatus('not-found');
     }
 
     load();
     return () => { cancelled = true; };
   }, [shareId]);
 
-  // ── Loading state ──
+  // ── Loading ──
   if (status === 'loading') {
     return (
       <div className="sv-root">
@@ -215,23 +197,10 @@ export default function ShareView({ shareId }) {
     );
   }
 
-  // ── Not found state ──
+  // ── Not found ──
   if (status === 'not-found') {
     return (
       <div className="sv-root">
-        {/* Header — visible even on error so users can navigate home */}
-        <div className="sv-header">
-          <div className="sv-header-logo">
-            <div className="sv-logo-orb">⬡</div>
-            <div className="sv-logo-text">
-              <span className="sv-logo-title">FSAI</span>
-              <span className="sv-logo-sub">Shared Conversation</span>
-            </div>
-          </div>
-          {/* href="/" triggers the auth gate in App.js */}
-          <a href="/" className="sv-open-btn">Open FSAI →</a>
-        </div>
-
         <div className="sv-center">
           <div className="sv-not-found-orb">⬡</div>
           <h2 className="sv-not-found-title">Conversation not found</h2>
@@ -245,7 +214,7 @@ export default function ShareView({ shareId }) {
     );
   }
 
-  // ── Found state ──
+  // ── Found ──
   const { title, sharedAt, messages = [] } = data;
 
   return (
@@ -259,7 +228,6 @@ export default function ShareView({ shareId }) {
             <span className="sv-logo-sub">Shared Conversation</span>
           </div>
         </div>
-        {/* href="/" triggers the auth gate in App.js */}
         <a href="/" className="sv-open-btn">Open FSAI →</a>
       </div>
 
@@ -271,7 +239,7 @@ export default function ShareView({ shareId }) {
         </div>
       </div>
 
-      {/* Accessibility notice */}
+      {/* Notice */}
       <div className="sv-notice-bar">
         <div className="sv-notice-inner">
           <span className="sv-notice-icon">🌐</span>
@@ -289,7 +257,6 @@ export default function ShareView({ shareId }) {
             .map(msg => (
               <SharedMessage key={msg.id} message={msg} />
             ))}
-
           {messages.length === 0 && (
             <p className="sv-empty">No messages in this conversation.</p>
           )}
