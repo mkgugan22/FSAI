@@ -1,12 +1,30 @@
 [build]
-    command = "npm run build"
+  command = "npm run build"
   publish = "build"
-
 
 [functions]
   directory = "netlify/functions"
 
+# Chat API
 [[redirects]]
   from = "/api/chat"
   to = "/.netlify/functions/chat"
+  status = 200
+
+# Share: save a conversation
+[[redirects]]
+  from = "/api/share-save"
+  to = "/.netlify/functions/share-save"
+  status = 200
+
+# Share: load a conversation
+[[redirects]]
+  from = "/api/share-load"
+  to = "/.netlify/functions/share-load"
+  status = 200
+
+# SPA fallback — must be last
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
   status = 200
