@@ -8,11 +8,18 @@ import Sidebar            from './components/Sidebar';
 import MessageList        from './components/MessageList';
 import ChatInput          from './components/ChatInput';
 import AuthPage           from './components/AuthPage';
+import ShareView          from './components/ShareView';
 import { useChat }        from './hooks/useChat';
 import { useAuth }        from './context/AuthContext';
 import './App.css';
 
-// ── Per-user recents helpers ──────────────────────────────────────────────────
+// ── Share route detection ─────────────────────────────────────
+function getShareId() {
+  const match = window.location.pathname.match(/^\/share\/(.+)$/);
+  return match ? match[1] : null;
+}
+
+// ── Per-user recents helpers ──────────────────────────────────
 function recentsKey(userId) {
   return `fsai_recents_${userId}`;
 }
@@ -32,7 +39,7 @@ function saveRecents(userId, recents) {
   } catch {}
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
 
 export default function App() {
   const { user } = useAuth();
@@ -42,12 +49,15 @@ export default function App() {
   const [quickInput, setQuickInput]             = useState('');
   const chatInputRef = useRef(null);
 
-  // ── Conversation history: initialised from the logged-in user's storage ──
+  // ── Share page detection ──────────────────────────────────────
+  const shareId = getShareId();
+
+  // ── Conversation history ──────────────────────────────────────
   const [conversationHistory, setConversationHistory] = useState(() =>
     user ? loadRecents(user.id) : []
   );
 
-  // ── Reset recents whenever the active user changes (login / logout / switch) ──
+  // ── Reset recents on user change ──────────────────────────────
   const prevUserIdRef = useRef(user?.id ?? null);
   useEffect(() => {
     const currentId = user?.id ?? null;
@@ -57,7 +67,9 @@ export default function App() {
     }
   }, [user]);
 
-  // ── Append new user queries to recents and persist them ──────────────────
+  // ── Append new user queries to recents ───────────────────────
+  // NOTE: We do NOT snapshot messages here — messages are read live
+  // from Redux state at share-time so the snapshot is always complete.
   useEffect(() => {
     if (!user || messages.length === 0) return;
 
@@ -65,7 +77,6 @@ export default function App() {
     if (!lastUserMsg) return;
 
     setConversationHistory(prev => {
-      // Avoid duplicates by text content
       if (prev.some(h => h.text === lastUserMsg)) return prev;
       const updated = [
         {
@@ -83,7 +94,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
-  // ── Update history (pin / rename / archive / delete) and persist ─────────
+  // ── Update history mutations ──────────────────────────────────
   const handleUpdateHistory = useCallback((updatedList) => {
     setConversationHistory(updatedList);
     if (user) saveRecents(user.id, updatedList);
@@ -108,7 +119,12 @@ export default function App() {
     if (user) saveRecents(user.id, []);
   }, [user]);
 
-  // Show auth page when not logged in
+  // ── Share page: render without auth ──────────────────────────
+  if (shareId) {
+    return <ShareView shareId={shareId} />;
+  }
+
+  // ── Auth gate ─────────────────────────────────────────────────
   if (!user) {
     return <AuthPage />;
   }
@@ -140,6 +156,7 @@ export default function App() {
           onLoadConversation={handleLoadConversation}
           onClearHistory={handleClearHistory}
           onUpdateHistory={handleUpdateHistory}
+          liveMessages={messages}
         />
 
         <div className="chat-panel">
