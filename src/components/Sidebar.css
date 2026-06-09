@@ -773,3 +773,105 @@
   font-weight: 700;
   color: var(--text);
 }
+/* ── Share modal: status rows ── */
+.sm-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.sm-status-spinner {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--cyan);
+  border-radius: 50%;
+  animation: sm-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes sm-spin { to { transform: rotate(360deg); } }
+
+.sm-status-text {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+/* Generic notice block used for ok/warn states */
+.sm-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+
+.sm-notice > span:first-child {
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  line-height: 1;
+}
+
+.sm-notice strong { font-weight: 700; color: var(--text); }
+
+.sm-notice code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(0, 210, 255, 0.1);
+  border: 1px solid rgba(0, 210, 255, 0.2);
+  color: var(--cyan);
+}
+
+.sm-notice--ok {
+  background: rgba(34, 211, 138, 0.07);
+  border: 1px solid rgba(34, 211, 138, 0.22);
+  color: var(--text-dim);
+}
+
+.sm-notice--warn {
+  background: rgba(251, 191, 36, 0.06);
+  border: 1px solid rgba(251, 191, 36, 0.22);
+  color: var(--text-dim);
+}
+
+[data-theme="light"] .sm-notice code {
+  background: rgba(0, 119, 170, 0.08);
+  border-color: rgba(0, 119, 170, 0.2);
+  color: var(--cyan);
+}
+
+/* sv-footer-link for ShareView footer */
+.sv-footer-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: var(--radius);
+  background: var(--primary-gradient);
+  color: #fff;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-decoration: none;
+  box-shadow: var(--glow-1);
+  white-space: nowrap;
+  transition: opacity 0.2s, transform 0.15s;
+  flex-shrink: 0;
+}
+.sv-footer-link:hover { opacity: 0.9; transform: translateY(-1px); }
