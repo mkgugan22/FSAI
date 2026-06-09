@@ -1,51 +1,62 @@
 // ═══════════════════════════════════════
 // FSAI – ShareView
-// Renders a shared conversation from URL hash (base64-encoded).
-// Works across any browser / device — no localStorage dependency.
+// Renders a shared conversation.
+//
+// Production (Netlify): conversations are saved server-side via
+//   POST /api/share-save  →  Netlify Blobs
+//   GET  /api/share-load  →  Netlify Blobs
+// URLs stay short:  /share/<shareId>   (no data in URL)
+//
+// Local dev (no Netlify Blobs): falls back to localStorage so
+//   sharing still works within the same browser session.
+//
 // Accessible at /share/:shareId
 // ═══════════════════════════════════════
 import React, { useEffect, useState } from 'react';
 import AgentResponse from './AgentResponse';
 import './ShareView.css';
 
-// ── Encode / Decode helpers ───────────────────────────────────
-// We store the full conversation payload in the URL hash as base64.
-// Format: /share/<shareId>#<base64-encoded-JSON>
-// The shareId in the path is kept for display/aesthetics only.
+// ── Environment detection ─────────────────────────────────────
+const IS_LOCAL =
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1';
 
-export function encodeSharePayload(payload) {
+// ── API helpers ───────────────────────────────────────────────
+
+/**
+ * Save a conversation server-side via Netlify Function.
+ * Returns true on success, false on failure.
+ */
+export async function saveShareRemote(shareId, payload) {
   try {
-    const json = JSON.stringify(payload);
-    // btoa needs ASCII — encode as UTF-8 first
-    const bytes = new TextEncoder().encode(json);
-    let binary = '';
-    bytes.forEach(b => (binary += String.fromCharCode(b)));
-    return btoa(binary);
+    const res = await fetch('/api/share-save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shareId, payload }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Load a conversation from the server.
+ * Returns the payload object, or null if not found / error.
+ */
+export async function loadShareRemote(shareId) {
+  try {
+    const res = await fetch(`/api/share-load?id=${encodeURIComponent(shareId)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.payload ?? null;
   } catch {
     return null;
   }
 }
 
-export function decodeSharePayload(hash) {
-  try {
-    const base64 = hash.startsWith('#') ? hash.slice(1) : hash;
-    const binary = atob(base64);
-    const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
-    const json = new TextDecoder().decode(bytes);
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
-}
+// ── localStorage helpers (local dev fallback) ─────────────────
 
-// Build the full shareable URL that embeds the conversation data
-export function buildShareUrl(shareId, payload) {
-  const encoded = encodeSharePayload(payload);
-  if (!encoded) return null;
-  return `${window.location.origin}/share/${shareId}#${encoded}`;
-}
-
-// ── Legacy localStorage helpers (kept for backward compat) ───
 export function saveSharedConversation(shareId, payload) {
   try {
     localStorage.setItem(`fsai_share_${shareId}`, JSON.stringify(payload));
@@ -59,6 +70,23 @@ export function loadSharedConversation(shareId) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Unified save: uses API in production, localStorage in local dev.
+ * Returns { ok: boolean, fallback: boolean }
+ */
+export async function saveShare(shareId, payload) {
+  if (IS_LOCAL) {
+    saveSharedConversation(shareId, payload);
+    return { ok: true, fallback: true };
+  }
+  const ok = await saveShareRemote(shareId, payload);
+  if (!ok) {
+    saveSharedConversation(shareId, payload);
+    return { ok: false, fallback: true };
+  }
+  return { ok: true, fallback: false };
 }
 
 // ── Time formatters ───────────────────────────────────────────
@@ -118,8 +146,8 @@ function SharedMessage({ message }) {
 
 // ── Main Component ────────────────────────────────────────────
 export default function ShareView({ shareId }) {
-  const [data, setData]     = useState(null);
-  const [status, setStatus] = useState('loading'); // loading | found | not-found
+  const [data,   setData]   = useState(null);
+  const [status, setStatus] = useState('loading');
 
   useEffect(() => {
     if (!shareId) {
@@ -127,26 +155,34 @@ export default function ShareView({ shareId }) {
       return;
     }
 
-    // 1. Try URL hash first (works across all browsers/devices)
-    const hash = window.location.hash;
-    if (hash && hash.length > 1) {
-      const payload = decodeSharePayload(hash);
-      if (payload) {
-        setData(payload);
+    let cancelled = false;
+
+    async function load() {
+      // 1. Try server API first (works on Netlify, fails gracefully on localhost)
+      if (!IS_LOCAL) {
+        const remote = await loadShareRemote(shareId);
+        if (cancelled) return;
+        if (remote) {
+          setData(remote);
+          setStatus('found');
+          return;
+        }
+      }
+
+      // 2. Try localStorage (local dev, or same-browser legacy links)
+      const local = loadSharedConversation(shareId);
+      if (cancelled) return;
+      if (local) {
+        setData(local);
         setStatus('found');
         return;
       }
+
+      setStatus('not-found');
     }
 
-    // 2. Fallback: try localStorage (for links shared from the same browser)
-    const legacy = loadSharedConversation(shareId);
-    if (legacy) {
-      setData(legacy);
-      setStatus('found');
-      return;
-    }
-
-    setStatus('not-found');
+    load();
+    return () => { cancelled = true; };
   }, [shareId]);
 
   // ── Loading ──
@@ -169,7 +205,7 @@ export default function ShareView({ shareId }) {
           <div className="sv-not-found-orb">⬡</div>
           <h2 className="sv-not-found-title">Conversation not found</h2>
           <p className="sv-not-found-desc">
-            This share link may have expired or been truncated.<br />
+            This share link may have expired or been removed.<br />
             Ask the person who shared it to generate a new link.
           </p>
           <a href="/" className="sv-home-btn">← Open FSAI</a>
@@ -206,9 +242,9 @@ export default function ShareView({ shareId }) {
       {/* Notice */}
       <div className="sv-notice-bar">
         <div className="sv-notice-inner">
-          <span className="sv-notice-icon">ℹ</span>
+          <span className="sv-notice-icon">🌐</span>
           <span className="sv-notice-text">
-            This conversation is embedded in the link — it can be viewed on any device or browser.
+            This conversation is accessible on any browser or device.
           </span>
         </div>
       </div>
@@ -216,9 +252,11 @@ export default function ShareView({ shareId }) {
       {/* Messages */}
       <div className="sv-body">
         <div className="sv-messages">
-          {messages.filter(m => m.role === 'user' || m.role === 'agent').map(msg => (
-            <SharedMessage key={msg.id} message={msg} />
-          ))}
+          {messages
+            .filter(m => m.role === 'user' || m.role === 'agent')
+            .map(msg => (
+              <SharedMessage key={msg.id} message={msg} />
+            ))}
           {messages.length === 0 && (
             <p className="sv-empty">No messages in this conversation.</p>
           )}
