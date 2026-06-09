@@ -1,38 +1,55 @@
 // ═══════════════════════════════════════
 // FSAI – Sidebar
-// Features: Pin, Share (URL-encoded, cross-browser), Rename, Archive, Delete
+// Features: Pin, Share (server-side via Netlify Blobs), Rename, Archive, Delete
 // ═══════════════════════════════════════
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { QUICK_PROMPTS } from '../utils/prompts';
-import { buildShareUrl } from './ShareView';
+import { saveShare } from './ShareView';
 import './Sidebar.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ShareModal
-// Encodes the full conversation into the URL hash — works on any browser/device.
+// Saves the conversation server-side and shows a short shareable URL.
+// Falls back to localStorage on localhost.
 // ─────────────────────────────────────────────────────────────────────────────
 function ShareModal({ conv, liveMessages, onClose }) {
-  const [copied, setCopied] = useState(false);
+  const [copied,   setCopied]   = useState(false);
   const [shareUrl, setShareUrl] = useState('');
-  const [tooLarge, setTooLarge] = useState(false);
+  const [saving,   setSaving]   = useState(true);
+  const [saveError, setSaveError] = useState('');
 
   const shareId = String(conv.id);
 
   useEffect(() => {
-    const payload = {
-      title:    conv.text,
-      sharedAt: new Date().toISOString(),
-      messages: liveMessages,
-    };
+    let cancelled = false;
 
-    const url = buildShareUrl(shareId, payload);
-    if (!url) {
-      setTooLarge(true);
-    } else {
-      setShareUrl(url);
-      // Check if the URL might be too long for some browsers (>64KB)
-      if (url.length > 60000) setTooLarge(true);
+    async function doSave() {
+      setSaving(true);
+      setSaveError('');
+
+      const payload = {
+        title:    conv.text,
+        sharedAt: new Date().toISOString(),
+        messages: liveMessages,
+      };
+
+      const result = await saveShare(shareId, payload);
+
+      if (cancelled) return;
+
+      if (result.ok || result.fallback) {
+        // Build the short share URL (no data in it)
+        const url = `${window.location.origin}/share/${shareId}`;
+        setShareUrl(url);
+      } else {
+        setSaveError('Failed to save the share link. Please try again.');
+      }
+
+      setSaving(false);
     }
+
+    doSave();
+    return () => { cancelled = true; };
   }, [shareId, conv.text, liveMessages]);
 
   useEffect(() => {
@@ -65,25 +82,33 @@ function ShareModal({ conv, liveMessages, onClose }) {
           <span className="sm-title">Share Conversation</span>
           <button className="sm-close" onClick={onClose} aria-label="Close">✕</button>
         </div>
+
         <div className="sm-body">
           <div className="sm-preview">
             <span className="sm-preview-icon">📝</span>
             <span className="sm-preview-text">{previewText}</span>
           </div>
 
-          {tooLarge ? (
+          {saving && (
             <div className="sm-local-notice">
-              <span className="sm-local-icon">⚠</span>
-              <span className="sm-local-text">
-                This conversation is too large to share via link. Try sharing a shorter conversation.
-              </span>
+              <span className="sm-local-icon">⏳</span>
+              <span className="sm-local-text">Saving conversation…</span>
             </div>
-          ) : (
+          )}
+
+          {!saving && saveError && (
+            <div className="sm-local-notice" style={{ borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.06)' }}>
+              <span className="sm-local-icon">⚠</span>
+              <span className="sm-local-text">{saveError}</span>
+            </div>
+          )}
+
+          {!saving && !saveError && shareUrl && (
             <>
               <div className="sm-local-notice">
                 <span className="sm-local-icon">🌐</span>
                 <span className="sm-local-text">
-                  This link works on <strong>any browser or device</strong> — the conversation is embedded directly in the URL.
+                  This link works on <strong>any browser or device</strong>.
                 </span>
               </div>
 
@@ -319,8 +344,8 @@ export default function Sidebar({
   onQuickPrompt,
   isCollapsed,
   onToggle,
-  isMobileOpen    = false,
-  onMobileClose   = () => {},
+  isMobileOpen        = false,
+  onMobileClose       = () => {},
   conversationHistory = [],
   onLoadConversation  = () => {},
   onClearHistory      = () => {},
