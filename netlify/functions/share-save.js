@@ -8,46 +8,59 @@
 
 const { getStore } = require('@netlify/blobs');
 
+// ── CORS headers — allow any origin so share links work cross-browser ──
+const CORS_HEADERS = {
+  'Content-Type': 'application/json',
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
 exports.handler = async (event) => {
-  // Only allow POST
+  // Handle CORS preflight
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+  }
+
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
+      headers: CORS_HEADERS,
       body: JSON.stringify({ error: 'Method Not Allowed' }),
     };
   }
 
   try {
-    const { shareId, payload } = JSON.parse(event.body || '{}');
+    const body = JSON.parse(event.body || '{}');
+    const { shareId, payload } = body;
 
     if (!shareId || !payload) {
       return {
         statusCode: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: CORS_HEADERS,
         body: JSON.stringify({ error: 'shareId and payload are required' }),
       };
     }
 
-    // Validate shareId is safe (numeric timestamp-based)
+    // Validate shareId — allow only safe alphanumeric/dash/underscore chars
     if (!/^[\w-]{1,64}$/.test(shareId)) {
       return {
         statusCode: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: CORS_HEADERS,
         body: JSON.stringify({ error: 'Invalid shareId' }),
       };
     }
 
-    // Serialize payload and check size (max 1MB)
+    // Serialize payload and enforce 1MB size cap
     const serialized = JSON.stringify(payload);
     if (serialized.length > 1_000_000) {
       return {
         statusCode: 413,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Conversation too large to share (max 1MB)' }),
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'Conversation too large to share (max 1 MB)' }),
       };
     }
 
-    // Save to Netlify Blobs
     const store = getStore('fsai-shares');
     await store.set(shareId, serialized, {
       metadata: { sharedAt: new Date().toISOString() },
@@ -55,15 +68,15 @@ exports.handler = async (event) => {
 
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: CORS_HEADERS,
       body: JSON.stringify({ ok: true }),
     };
   } catch (err) {
     console.error('[share-save] Error:', err.message);
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: err.message }),
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ error: 'Internal server error' }),
     };
   }
 };
