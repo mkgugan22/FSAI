@@ -15,6 +15,7 @@
   backdrop-filter: blur(16px);
   display: flex;
   flex-direction: column;
+  /* NOTE: NO overflow:hidden here — that was killing the context menu */
   overflow: visible;
   flex-shrink: 0;
   transition: width 0.3s ease, min-width 0.3s ease, background-color 0.3s ease, transform 0.3s ease;
@@ -153,7 +154,7 @@
   text-transform: uppercase;
 }
 
-/* Collapse toggle button — used for Pinned, Recents, and Archived */
+/* Archived toggle button */
 .recents-title-toggle {
   background: none;
   border: none;
@@ -169,10 +170,25 @@
   gap: 6px;
   padding: 0;
   transition: color 0.2s;
-  width: 100%;
 }
 .recents-title-toggle:hover { color: var(--cyan); }
-.recents-chevron { font-size: 10px; margin-left: auto; }
+.recents-chevron { font-size: 10px; }
+
+.recents-clear {
+  background: transparent;
+  border: none;
+  color: var(--text-mute);
+  font-size: 12px;
+  cursor: pointer;
+  width: 20px; height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+.recents-clear:hover { background: var(--surface2); color: var(--cyan); }
 
 .recents-list {
   display: flex;
@@ -182,7 +198,10 @@
 }
 
 /* ══════════════════════════════════════
-   Recent Item
+   Recent Item — the key component
+   FIX: overflow visible, flex layout,
+   always-visible ··· button that just
+   fades on hover
 ══════════════════════════════════════ */
 .ri {
   position: relative;
@@ -191,6 +210,7 @@
   border-radius: 6px;
   border: 1px solid transparent;
   transition: background 0.15s, border-color 0.15s;
+  /* CRITICAL: no overflow:hidden — lets context menu appear */
 }
 
 .ri:hover {
@@ -203,6 +223,7 @@
   border-color: rgba(0, 210, 255, 0.12);
 }
 
+/* Main clickable area */
 .ri-btn {
   flex: 1;
   min-width: 0;
@@ -235,6 +256,11 @@
   text-overflow: ellipsis;
 }
 
+/* ··· button
+   ALWAYS in DOM so layout is stable.
+   opacity 0 by default, 1 on .ri:hover
+   This avoids layout shifts.
+*/
 .ri-more {
   flex-shrink: 0;
   width: 26px;
@@ -244,6 +270,7 @@
   border: none;
   border-radius: 4px;
   color: var(--text-subtle);
+  /* Use a rotated ellipsis character for vertical dots look */
   font-size: 13px;
   font-weight: 900;
   letter-spacing: 0px;
@@ -253,10 +280,12 @@
   justify-content: center;
   opacity: 0;
   transition: opacity 0.15s, background 0.15s, color 0.15s;
+  /* Prevent text selection on rapid clicks */
   user-select: none;
   line-height: 1;
 }
 
+/* Show on hover of the whole row */
 .ri:hover .ri-more { opacity: 1; }
 
 .ri-more:hover {
@@ -264,10 +293,13 @@
   color: var(--cyan);
 }
 
+/* Also show if menu is open (for open state persistence) */
 .ri-more:focus { opacity: 1; outline: none; }
 
 /* ══════════════════════════════════════
    Context Menu
+   position:fixed so it escapes any
+   overflow:hidden ancestor
 ══════════════════════════════════════ */
 .ctxmenu {
   position: fixed;
@@ -376,6 +408,7 @@
   to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
 
+/* Modal header */
 .sm-header {
   display: flex;
   align-items: center;
@@ -408,6 +441,7 @@
 }
 .sm-close:hover { background: var(--surface2); color: var(--text); }
 
+/* Modal body */
 .sm-body {
   padding: 16px 18px 20px;
   display: flex;
@@ -415,6 +449,7 @@
   gap: 14px;
 }
 
+/* Conversation preview chip */
 .sm-preview {
   display: flex;
   align-items: flex-start;
@@ -443,6 +478,7 @@
   margin: 0;
 }
 
+/* Link row */
 .sm-link-row {
   display: flex;
   gap: 8px;
@@ -469,7 +505,7 @@
   flex-shrink: 0;
   padding: 9px 16px;
   border-radius: 8px;
-  background: var(--primary-gradient);
+  background: linear-gradient(135deg, #7c3aed, #00d2ff);
   border: none;
   color: #fff;
   font-family: var(--font-ui);
@@ -479,15 +515,16 @@
   cursor: pointer;
   white-space: nowrap;
   transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
-  box-shadow: var(--glow-1);
+  box-shadow: 0 4px 14px rgba(0, 210, 255, 0.25);
 }
 .sm-copy-btn:hover {
   opacity: 0.92;
   transform: translateY(-1px);
-  box-shadow: var(--glow-2);
+  box-shadow: 0 6px 20px rgba(0, 210, 255, 0.4);
 }
 .sm-copy-btn:active { transform: translateY(0); }
 
+/* Rename modal specifics */
 .rename-label {
   font-family: var(--font-ui);
   font-size: 10px;
@@ -540,7 +577,7 @@
 .rename-confirm {
   padding: 8px 18px;
   border-radius: 7px;
-  background: var(--primary-gradient);
+  background: linear-gradient(135deg, #7c3aed, #00d2ff);
   border: none;
   color: #fff;
   font-family: var(--font-ui);
@@ -586,6 +623,7 @@
   color: var(--cyan);
 }
 
+/* ── Scrollable prompt list ── */
 .sidebar-body {
   flex: 1;
   overflow-y: auto;
@@ -703,4 +741,35 @@
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+/* ── Share modal: browser-local notice ── */
+.sm-local-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 12px;
+  background: rgba(124, 58, 237, 0.07);
+  border: 1px solid rgba(124, 58, 237, 0.18);
+  border-radius: var(--radius-sm);
+}
+
+.sm-local-icon {
+  font-size: 13px;
+  color: var(--primary-2);
+  flex-shrink: 0;
+  margin-top: 1px;
+  line-height: 1;
+}
+
+.sm-local-text {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+  line-height: 1.55;
+}
+
+.sm-local-text strong {
+  font-weight: 700;
+  color: var(--text);
 }
