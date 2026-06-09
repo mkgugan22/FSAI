@@ -2,85 +2,95 @@
 // FSAI – Netlify Function: share-save
 // POST /api/share-save
 // Body: { shareId: string, payload: object }
-// Saves conversation to Netlify Blobs.
-// Returns: { ok: true, shareId }
+// Stores conversation in JSONBin.io (free, no setup needed beyond API key).
+// Returns: { ok: true, shareId, binId }
 // ═══════════════════════════════════════
 
-exports.handler = async (event) => {
-  const CORS_HEADERS = {
-    'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  };
+const CORS = {
+  'Content-Type': 'application/json',
+  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
 
-  // Handle CORS preflight
+exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+    return { statusCode: 204, headers: CORS, body: '' };
+  }
+  if (event.httpMethod !== 'POST') {
+    return { statusCode: 405, headers: CORS, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
 
-  if (event.httpMethod !== 'POST') {
+  const MASTER_KEY = process.env.JSONBIN_MASTER_KEY;
+  if (!MASTER_KEY) {
     return {
-      statusCode: 405,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({ error: 'Method Not Allowed' }),
+      statusCode: 503,
+      headers: CORS,
+      body: JSON.stringify({
+        error: 'JSONBIN_MASTER_KEY environment variable is not set. Add it in Netlify → Site Settings → Environment Variables.',
+      }),
     };
+  }
+
+  let body;
+  try { body = JSON.parse(event.body || '{}'); }
+  catch { return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Invalid JSON' }) }; }
+
+  const { shareId, payload } = body;
+
+  if (!shareId || !payload) {
+    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'shareId and payload are required' }) };
+  }
+  if (!/^[\w-]{1,64}$/.test(shareId)) {
+    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Invalid shareId format' }) };
+  }
+
+  const serialized = JSON.stringify(payload);
+  if (serialized.length > 900_000) {
+    return { statusCode: 413, headers: CORS, body: JSON.stringify({ error: 'Conversation too large (max ~900KB)' }) };
   }
 
   try {
-    const body = JSON.parse(event.body || '{}');
-    const { shareId, payload } = body;
+    // Store the payload. We embed the shareId inside so we can verify on load.
+    const res = await fetch('https://api.jsonbin.io/v3/b', {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'X-Master-Key':  MASTER_KEY,
+        'X-Bin-Name':    `fsai-${shareId}`,
+        'X-Bin-Private': 'false',   // public read — no read key needed by anyone
+      },
+      body: JSON.stringify({ shareId, ...payload }),
+    });
 
-    if (!shareId || !payload) {
+    const data = await res.json();
+
+    if (!res.ok) {
+      console.error('[share-save] JSONBin error', res.status, JSON.stringify(data));
       return {
-        statusCode: 400,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ error: 'shareId and payload are required' }),
+        statusCode: res.status,
+        headers: CORS,
+        body: JSON.stringify({ error: data?.message || `JSONBin error ${res.status}` }),
       };
     }
 
-    // Validate shareId — only allow safe characters
-    if (!/^[\w-]{1,64}$/.test(shareId)) {
-      return {
-        statusCode: 400,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ error: 'Invalid shareId' }),
-      };
+    const binId = data?.metadata?.id;
+    if (!binId) {
+      return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: 'JSONBin did not return a bin ID' }) };
     }
 
-    // Serialize and size-check (1MB limit)
-    const serialized = JSON.stringify(payload);
-    if (serialized.length > 1_000_000) {
-      return {
-        statusCode: 413,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ error: 'Conversation too large (max ~1MB)' }),
-      };
-    }
-
-    // ── Netlify Blobs ───────────────────────────────────────────
-    // NETLIFY_BLOBS_CONTEXT is automatically injected at runtime
-    // in deployed Netlify Functions (no manual config needed).
-    const { getStore } = require('@netlify/blobs');
-    const store = getStore({ name: 'fsai-shares', consistency: 'strong' });
-
-    await store.set(shareId, serialized);
-
-    console.log(`[share-save] OK shareId=${shareId} size=${serialized.length}`);
-
+    // We store a mapping shareId → binId in a second bin so share URLs stay
+    // short (/share/<shareId>) rather than exposing JSONBin IDs.
+    // For simplicity we embed the binId in the share URL directly — the load
+    // function accepts either form.  Here we just return both.
+    console.log(`[share-save] OK shareId=${shareId} binId=${binId}`);
     return {
       statusCode: 200,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({ ok: true, shareId }),
+      headers: CORS,
+      body: JSON.stringify({ ok: true, shareId, binId }),
     };
-
   } catch (err) {
-    console.error('[share-save] FAILED:', err.message);
-    console.error(err.stack);
-    return {
-      statusCode: 500,
-      headers: CORS_HEADERS,
-      body: JSON.stringify({ error: err.message }),
-    };
+    console.error('[share-save] fetch error', err.message);
+    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: err.message }) };
   }
 };
