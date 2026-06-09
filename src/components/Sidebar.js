@@ -1,17 +1,32 @@
 // ═══════════════════════════════════════
 // FSAI – Sidebar
-// Features: Pin, Share (modal), Rename, Archive, Delete
+// Features: Pin, Share (modal + localStorage persistence), Rename, Archive, Delete
 // ═══════════════════════════════════════
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { QUICK_PROMPTS } from '../utils/prompts';
+import { saveSharedConversation } from './ShareView';
 import './Sidebar.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ShareModal
+// Receives the full live messages array so the snapshot is always up to date.
 // ─────────────────────────────────────────────────────────────────────────────
-function ShareModal({ conv, onClose }) {
+function ShareModal({ conv, liveMessages, onClose }) {
   const [copied, setCopied] = useState(false);
-  const shareUrl = `${window.location.origin}/share/${conv.id}`;
+
+  const shareId  = String(conv.id);
+  const shareUrl = `${window.location.origin}/share/${shareId}`;
+
+  // Save the live message snapshot to localStorage as soon as the modal opens.
+  // liveMessages comes directly from Redux state so it always contains
+  // every message in the current conversation.
+  useEffect(() => {
+    saveSharedConversation(shareId, {
+      title:    conv.text,
+      sharedAt: new Date().toISOString(),
+      messages: liveMessages,
+    });
+  }, [shareId, conv.text, liveMessages]);
 
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
@@ -22,7 +37,7 @@ function ShareModal({ conv, onClose }) {
   const handleCopy = () => {
     navigator.clipboard.writeText(shareUrl).then(() => {
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 2500);
     });
   };
 
@@ -48,9 +63,16 @@ function ShareModal({ conv, onClose }) {
             <span className="sm-preview-icon">📝</span>
             <span className="sm-preview-text">{previewText}</span>
           </div>
-          <p className="sm-desc">
-            Anyone with this link can view this conversation.
-          </p>
+
+          <div className="sm-local-notice">
+            <span className="sm-local-icon">ℹ</span>
+            <span className="sm-local-text">
+              This link works in <strong>this browser only</strong>. The conversation
+              is saved locally — it won't open on other devices or in
+              private/incognito windows.
+            </span>
+          </div>
+
           <div className="sm-link-row">
             <input
               className="sm-link-input"
@@ -79,19 +101,15 @@ function ContextMenu({ conv, anchorEl, onClose, onPin, onShare, onStartRename, o
 
   useEffect(() => {
     if (!anchorEl) return;
-    const rect = anchorEl.getBoundingClientRect();
+    const rect  = anchorEl.getBoundingClientRect();
     const menuH = 200;
     const menuW = 180;
 
-    let top = rect.bottom + 4;
+    let top  = rect.bottom + 4;
     let left = rect.left;
 
-    if (top + menuH > window.innerHeight) {
-      top = rect.top - menuH - 4;
-    }
-    if (left + menuW > window.innerWidth) {
-      left = window.innerWidth - menuW - 8;
-    }
+    if (top  + menuH > window.innerHeight) top  = rect.top - menuH - 4;
+    if (left + menuW > window.innerWidth)  left = window.innerWidth - menuW - 8;
     if (left < 4) left = 4;
 
     setPos({ top, left });
@@ -99,20 +117,22 @@ function ContextMenu({ conv, anchorEl, onClose, onPin, onShare, onStartRename, o
 
   useEffect(() => {
     const handleClick = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target) &&
-          anchorEl && !anchorEl.contains(e.target)) {
+      if (
+        menuRef.current && !menuRef.current.contains(e.target) &&
+        anchorEl && !anchorEl.contains(e.target)
+      ) {
         onClose();
       }
     };
     const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
     const t = setTimeout(() => {
       document.addEventListener('mousedown', handleClick);
-      document.addEventListener('keydown', handleKey);
+      document.addEventListener('keydown',   handleKey);
     }, 50);
     return () => {
       clearTimeout(t);
       document.removeEventListener('mousedown', handleClick);
-      document.removeEventListener('keydown', handleKey);
+      document.removeEventListener('keydown',   handleKey);
     };
   }, [anchorEl, onClose]);
 
@@ -240,8 +260,13 @@ function RenameModal({ conv, onConfirm, onCancel }) {
 
   return (
     <div className="sm-backdrop" onClick={onCancel}>
-      <div className="sm-modal sm-modal--narrow" onClick={(e) => e.stopPropagation()}
-        role="dialog" aria-modal="true" aria-label="Rename conversation">
+      <div
+        className="sm-modal sm-modal--narrow"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Rename conversation"
+      >
         <div className="sm-header">
           <span className="sm-title">Rename Conversation</span>
           <button className="sm-close" onClick={onCancel} aria-label="Close">✕</button>
@@ -255,14 +280,14 @@ function RenameModal({ conv, onConfirm, onCancel }) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') { e.preventDefault(); handleConfirm(); }
+              if (e.key === 'Enter')  { e.preventDefault(); handleConfirm(); }
               if (e.key === 'Escape') onCancel();
             }}
             maxLength={120}
             placeholder="Enter a name…"
           />
           <div className="rename-actions">
-            <button className="rename-cancel" onClick={onCancel}>Cancel</button>
+            <button className="rename-cancel"  onClick={onCancel}>Cancel</button>
             <button className="rename-confirm" onClick={handleConfirm}>Save</button>
           </div>
         </div>
@@ -278,26 +303,26 @@ export default function Sidebar({
   onQuickPrompt,
   isCollapsed,
   onToggle,
-  isMobileOpen = false,
-  onMobileClose = () => {},
+  isMobileOpen    = false,
+  onMobileClose   = () => {},
   conversationHistory = [],
   onLoadConversation  = () => {},
   onClearHistory      = () => {},
   onUpdateHistory     = () => {},
+  liveMessages        = [],      // live Redux messages passed from App
 }) {
-  const [openCategory, setOpenCategory] = useState('Common Errors');
-  const [shareTarget,  setShareTarget]  = useState(null);
-  const [renameTarget, setRenameTarget] = useState(null);
-  const [showArchived, setShowArchived] = useState(false);
-  // Collapse state for Pinned and Recents sections
+  const [openCategory,     setOpenCategory]     = useState('Common Errors');
+  const [shareTarget,      setShareTarget]      = useState(null);
+  const [renameTarget,     setRenameTarget]     = useState(null);
+  const [showArchived,     setShowArchived]     = useState(false);
   const [pinnedCollapsed,  setPinnedCollapsed]  = useState(false);
   const [recentsCollapsed, setRecentsCollapsed] = useState(false);
 
   const mobileClass    = isMobileOpen ? 'mobile-open' : '';
   const collapsedClass = isCollapsed  ? 'collapsed'   : '';
 
-  const pinned   = conversationHistory.filter(c => c.pinned && !c.archived);
-  const recents  = conversationHistory.filter(c => !c.pinned && !c.archived);
+  const pinned   = conversationHistory.filter(c => c.pinned   && !c.archived);
+  const recents  = conversationHistory.filter(c => !c.pinned  && !c.archived);
   const archived = conversationHistory.filter(c => c.archived);
 
   // ── Mutation handlers ─────────────────────────────────────────────────────
@@ -337,12 +362,12 @@ export default function Sidebar({
   }, [onLoadConversation, onMobileClose]);
 
   const itemActions = {
-    onClick:        handleItemClick,
-    onPin:          handlePin,
-    onShare:        setShareTarget,
-    onStartRename:  setRenameTarget,
-    onArchive:      handleArchive,
-    onDelete:       handleDelete,
+    onClick:       handleItemClick,
+    onPin:         handlePin,
+    onShare:       setShareTarget,
+    onStartRename: setRenameTarget,
+    onArchive:     handleArchive,
+    onDelete:      handleDelete,
   };
 
   return (
@@ -497,9 +522,11 @@ export default function Sidebar({
         )}
       </aside>
 
+      {/* Pass liveMessages to ShareModal so snapshot is always complete */}
       {shareTarget && (
         <ShareModal
           conv={shareTarget}
+          liveMessages={liveMessages}
           onClose={() => setShareTarget(null)}
         />
       )}
