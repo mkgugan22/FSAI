@@ -32,7 +32,7 @@ const app  = express();
 const PORT = process.env.PORT || 5000;
 
 // ── Mistral Agent Config ──────────────────────────────────────
-const MISTRAL_API_KEY = 'wPUkMMGL2Ss5mijhtULdr46o4HJQcpi9';
+const MISTRAL_API_KEY = 'PbJlPMgw4AeRxweWpNrLKKVcpPvuh75b';
 const MISTRAL_AGENT_ID      = 'ag_019d4cb0e3ad7269b8e189224bddfb9a';
 const MISTRAL_AGENT_VERSION = 3; // Updated to version 3 with enhanced instructions (text-based inputs only)
 const MISTRAL_CONV_URL      = 'https://api.mistral.ai/v1/conversations';
